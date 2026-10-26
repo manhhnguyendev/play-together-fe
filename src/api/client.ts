@@ -1,6 +1,6 @@
 import { create, isAxiosError } from 'axios';
 import type { AxiosError, AxiosRequestConfig } from 'axios';
-import { API_URL } from './endpoints';
+import { API_ROOT } from './endpoints';
 
 let accessToken: string | null = null;
 let onUnauthorized: (() => void) | null = null;
@@ -24,7 +24,7 @@ export class ApiError extends Error {
 }
 
 export const http = create({
-  baseURL: API_URL.accounts.replace('/accounts', ''),
+  baseURL: API_ROOT,
   timeout: 20000,
   headers: {
     'Content-Type': 'application/json; charset=UTF-8',

@@ -11,10 +11,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { queryKeys } from '@/api/queryKeys';
 import { gameService, hobbyService } from '@/api/services/catalog';
 import type { GamesModel } from '@/api/types';
 import { Button, ErrorView, LoadingView, useToast } from '@/components/ui';
+import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 
@@ -29,7 +29,7 @@ export default function TakeCategoriesScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const gamesQuery = useQuery({
-    queryKey: queryKeys.games,
+    queryKey: queryKeys.allGames,
     queryFn: () => gameService.getAll(),
   });
 

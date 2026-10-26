@@ -1,89 +1,137 @@
-import { apiDelete, apiGet, apiPost, apiPut, buildQuery } from '../client';
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from '../client';
 import { API_URL } from '../endpoints';
 import type {
-  ApiListResponse,
-  ApiResponse,
   CreateGameOfUserModel,
   CreateHobbiesModel,
   CreateOnlineHourModel,
   DeleteHobbiesModel,
-  GamesModel,
-  HobbiesModel,
-  OnlineHourModel,
-  RankModel,
   UpdateGameOfUserModel,
   UpdateOnlineHourModel,
 } from '../types';
+import {
+  legacyArray,
+  legacyList,
+  toLegacyGame,
+  toLegacyHobby,
+  toLegacyOnlineHour,
+  toLegacyRank,
+} from '../v2/mappers';
+import type {
+  AvailabilityWindow,
+  GameView,
+  Paginated,
+  RankView,
+  UserProfile,
+} from '../v2/types';
+
+const toWireDay = (dayInWeek: number): number =>
+  dayInWeek === 8 ? 7 : dayInWeek - 1;
 
 export const gameService = {
-  getAll: () =>
-    apiGet<ApiListResponse<GamesModel>>(
-      `${API_URL.games}${buildQuery({ PageSize: 50 })}`,
+  getAll: async () =>
+    legacyList(
+      await apiGet<Paginated<GameView>>(
+        `${API_URL.games}?pageSize=100`,
+      ),
+      toLegacyGame,
     ),
 
-  getMostFavorite: () =>
-    apiGet<ApiListResponse<GamesModel>>(
-      `${API_URL.games}${buildQuery({ IsMostFavorite: true, PageSize: 8 })}`,
+  getMostFavorite: async () =>
+    legacyList(
+      await apiGet<Paginated<GameView>>(`${API_URL.games}?pageSize=8`),
+      toLegacyGame,
     ),
 
-  getAllRanks: (gameId: string) =>
-    apiGet<ApiListResponse<RankModel>>(
-      `${API_URL.games}/${gameId}/ranks${buildQuery({ PageSize: 100 })}`,
+  getAllRanks: async (gameId: string) =>
+    legacyArray(
+      await apiGet<RankView[]>(`${API_URL.games}/${gameId}/ranks`),
+      toLegacyRank,
     ),
-};
-
-export const rankService = {
-  getById: (rankId: string) =>
-    apiGet<ApiResponse<RankModel>>(`${API_URL.ranks}/${rankId}`),
 };
 
 export const hobbyService = {
-  getOfUser: (userId: string) =>
-    apiGet<ApiListResponse<HobbiesModel>>(
-      `${API_URL.users}/${userId}/hobbies`,
-    ),
+  getOfUser: async (userId: string) => {
+    const profile = await apiGet<UserProfile>(`${API_URL.users}/${userId}`);
+    return legacyArray(profile.hobbies, (hobby) =>
+      toLegacyHobby(hobby, profile),
+    );
+  },
 
   create: async (items: CreateHobbiesModel[]) => {
-    await apiPost(API_URL.hobbies, items);
+    await Promise.all(
+      items.map((item) =>
+        apiPost<void>(`${API_URL.users}/me/hobbies`, { gameId: item.gameId }),
+      ),
+    );
   },
 
   remove: async (items: DeleteHobbiesModel[]) => {
-    await apiDelete(API_URL.hobbies, items);
+    await Promise.all(
+      items.map((item) =>
+        apiDelete<void>(`${API_URL.users}/me/hobbies/${item.hobbyId}`),
+      ),
+    );
   },
 };
 
 export const gameOfUserService = {
   update: async (gameOfUserId: string, body: UpdateGameOfUserModel) => {
-    await apiPut(`${API_URL.gameOfUser}/${gameOfUserId}`, body);
+    await apiPatch<void>(`${API_URL.users}/me/skills/${gameOfUserId}`, {
+      ...(body.rankId && body.rankId !== 'None'
+        ? { rankId: body.rankId }
+        : {}),
+    });
   },
 
   remove: async (gameOfUserId: string) => {
-    await apiDelete(`${API_URL.gameOfUser}/${gameOfUserId}`);
+    await apiDelete<void>(`${API_URL.users}/me/skills/${gameOfUserId}`);
   },
 
   create: async (items: CreateGameOfUserModel[]) => {
-    await apiPost(`${API_URL.gameOfUser}/multi-games`, items);
+    await Promise.all(
+      items.map((item) =>
+        apiPost<void>(`${API_URL.users}/me/skills`, {
+          gameId: item.gameId,
+          ...(item.rankId && item.rankId !== 'None'
+            ? { rankId: item.rankId }
+            : {}),
+        }),
+      ),
+    );
   },
 };
 
 export const datingService = {
-  getAll: (userId: string) =>
-    apiGet<ApiListResponse<OnlineHourModel>>(
-      `${API_URL.users}/${userId}/datings${buildQuery({
-        PageSize: 100,
-        SortByDay: true,
-      })}`,
-    ),
+  getAll: async (userId: string) => {
+    const profile = await apiGet<UserProfile>(`${API_URL.users}/${userId}`);
+    return legacyArray(profile.availability, toLegacyOnlineHour);
+  },
 
   create: async (body: CreateOnlineHourModel) => {
-    await apiPost(API_URL.dating, body);
+    await apiPost<void>(`${API_URL.users}/me/availability`, {
+      dayOfWeek: toWireDay(body.dayInWeek),
+      startMinute: body.fromHour,
+      endMinute: body.toHour,
+    });
   },
 
   update: async (datingId: string, body: UpdateOnlineHourModel) => {
-    await apiPut(`${API_URL.dating}/${datingId}`, body);
+    const windows = await apiGet<AvailabilityWindow[]>(
+      `${API_URL.users}/me/availability`,
+    );
+    const current = windows.find((window) => window.id === datingId);
+    if (!current) {
+      throw new ApiError('Khung giờ không còn tồn tại', 404);
+    }
+    await apiDelete<void>(`${API_URL.users}/me/availability/${datingId}`);
+    await apiPost<void>(`${API_URL.users}/me/availability`, {
+      dayOfWeek: current.dayOfWeek,
+      startMinute: body.fromHour,
+      endMinute: body.toHour,
+    });
   },
 
   remove: async (id: string) => {
-    await apiDelete(`${API_URL.dating}/${id}`);
+    await apiDelete<void>(`${API_URL.users}/me/availability/${id}`);
   },
 };

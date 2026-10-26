@@ -34,4 +34,5 @@ export const storage = {
 
 export const STORAGE_KEYS = {
   token: 'play_together_token',
+  refreshToken: 'play_together_refresh_token',
 } as const;

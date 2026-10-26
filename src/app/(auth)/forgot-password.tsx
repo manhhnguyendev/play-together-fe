@@ -30,12 +30,6 @@ export default function ForgotPasswordScreen() {
 
     setSendingOtp(true);
     try {
-      const exists = await authService.checkEmail(email.trim());
-      if (String(exists) !== 'true') {
-        toast.show('Tên đăng nhập không tồn tại', 'error');
-        return;
-      }
-
       const code = generateOtp();
       expectedOtp.current = code;
       setOtpSent(true);

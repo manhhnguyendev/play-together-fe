@@ -39,7 +39,7 @@ export function GoogleLoginButton() {
 
 function ConfiguredGoogleButton() {
   const toast = useToast();
-  const signInWithToken = useAuthStore((state) => state.signInWithToken);
+  const signInWithAuth = useAuthStore((state) => state.signInWithAuth);
   const continueAfterSignIn = useContinueAfterSignIn();
   const [loading, setLoading] = useState(false);
 
@@ -69,11 +69,11 @@ function ConfiguredGoogleButton() {
     (async () => {
       setLoading(true);
       try {
-        const token = await authService.loginGoogle({
+        const auth = await authService.loginGoogle({
           providerName: 'https://accounts.google.com',
           idToken,
         });
-        const user = await signInWithToken(token.message);
+        const user = await signInWithAuth(auth);
         if (cancelled) return;
         toast.show('ĐĂNG NHẬP THÀNH CÔNG', 'success');
         await continueAfterSignIn(user.id);
@@ -92,7 +92,7 @@ function ConfiguredGoogleButton() {
     return () => {
       cancelled = true;
     };
-  }, [response, toast, signInWithToken, continueAfterSignIn]);
+  }, [response, toast, signInWithAuth, continueAfterSignIn]);
 
   return (
     <Pressable

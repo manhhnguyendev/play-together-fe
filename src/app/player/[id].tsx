@@ -26,7 +26,8 @@ import {
   useToast,
 } from '@/components/ui';
 import { isPlayerBusy } from '@/features/discovery/status';
-import { formatHour, formatNumber, initialsOf } from '@/lib/format';
+import { formatMinuteOfDay } from '@/features/hours/time';
+import { formatNumber, initialsOf } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -246,8 +247,8 @@ export default function PlayerProfileScreen() {
                         {items.map((item) => (
                           <View key={item.id} style={styles.hourChip}>
                             <Text style={styles.hourChipText}>
-                              {formatHour(item.fromHour)} -{' '}
-                              {formatHour(item.toHour)}
+                              {formatMinuteOfDay(item.fromHour)} -{' '}
+                              {formatMinuteOfDay(item.toHour)}
                             </Text>
                           </View>
                         ))}

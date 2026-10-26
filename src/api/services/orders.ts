@@ -1,80 +1,127 @@
-import { apiGet, apiPost, apiPut, buildQuery } from '../client';
+import { apiGet, apiPost, buildQuery } from '../client';
 import { API_URL } from '../endpoints';
 import type {
   AcceptOrderModel,
-  ApiListResponse,
-  ApiResponse,
   CancelOrderModel,
   CreateOrderModel,
   FinishSoonOrderModel,
   OrderDetailModel,
-  OrderModel,
   RejectOrderModel,
 } from '../types';
+import {
+  legacyList,
+  legacyResponse,
+  toLegacyOrder,
+  toLegacyOrderRating,
+  toLegacyReportOrder,
+  toWireOrderStatus,
+} from '../v2/mappers';
+import type {
+  OrderView,
+  Paginated,
+  RatingView,
+  ReportView,
+} from '../v2/types';
+
+const fetchOrder = (orderId: string) =>
+  apiGet<OrderView>(`${API_URL.orders}/${orderId}`);
+
+const fetchOrders = async (path: string) =>
+  legacyList(
+    await apiGet<Paginated<OrderView>>(path),
+    toLegacyOrder,
+  );
+
+const statusQuery = (status: string) =>
+  buildQuery({ status: toWireOrderStatus(status), pageSize: 3 });
 
 export const orderService = {
-  getById: (orderId: string) =>
-    apiGet<ApiResponse<OrderModel>>(`${API_URL.orders}/${orderId}`),
+  getById: async (orderId: string) =>
+    legacyResponse(toLegacyOrder(await fetchOrder(orderId))),
 
-  getDetailById: (orderId: string) =>
-    apiGet<ApiResponse<OrderDetailModel>>(
-      `${API_URL.orders}/detail/${orderId}`,
-    ),
+  getDetailById: async (orderId: string) => {
+    const order = await fetchOrder(orderId);
+    const [hirerRatings, playerRatings, reports] = await Promise.all([
+      apiGet<Paginated<RatingView>>(
+        `${API_URL.users}/${order.hirer.id}/ratings?pageSize=100`,
+      ),
+      apiGet<Paginated<RatingView>>(
+        `${API_URL.users}/${order.player.id}/ratings?pageSize=100`,
+      ),
+      apiGet<Paginated<ReportView>>(
+        `${API_URL.reports}/mine${buildQuery({
+          scope: 'submitted',
+          pageSize: 100,
+        })}`,
+      ),
+    ]);
+
+    const ratings = order.hasRated
+      ? [...hirerRatings.items, ...playerRatings.items].filter(
+          (rating, index, all) =>
+            rating.orderId === orderId &&
+            all.findIndex((item) => item.id === rating.id) === index,
+        )
+      : [];
+
+    const detail: OrderDetailModel = {
+      ...toLegacyOrder(order),
+      ratings: ratings.map(toLegacyOrderRating),
+      reports: reports.items
+        .filter((report) => report.orderId === orderId)
+        .map(toLegacyReportOrder),
+    };
+
+    return legacyResponse(detail);
+  },
 
   getRequestsOfPlayer: (status: string) =>
-    apiGet<ApiListResponse<OrderModel>>(
-      `${API_URL.users}/orders/requests${buildQuery({
-        IsNew: true,
-        PageSize: 3,
-        Status: status,
-      })}`,
-    ),
+    fetchOrders(`${API_URL.orders}/requests${statusQuery(status)}`),
 
   getOrdersOfUser: (status: string) =>
-    apiGet<ApiListResponse<OrderModel>>(
-      `${API_URL.users}/orders/${buildQuery({
-        IsNew: true,
-        PageSize: 3,
-        Status: status,
-      })}`,
-    ),
+    fetchOrders(`${API_URL.orders}${statusQuery(status)}`),
 
   getAllCreated: (pageSize: number) =>
-    apiGet<ApiListResponse<OrderModel>>(
-      `${API_URL.users}/orders${buildQuery({ IsNew: true, PageSize: pageSize })}`,
-    ),
+    fetchOrders(`${API_URL.orders}${buildQuery({ pageSize })}`),
 
   getAllReceived: (pageSize: number) =>
-    apiGet<ApiListResponse<OrderModel>>(
-      `${API_URL.users}/orders/requests${buildQuery({
-        IsNew: true,
-        PageSize: pageSize,
-      })}`,
-    ),
+    fetchOrders(`${API_URL.orders}/requests${buildQuery({ pageSize })}`),
 
-  create: (toUserId: string, body: CreateOrderModel) =>
-    apiPost<ApiResponse<OrderModel>>(
-      `${API_URL.users}/orders/${toUserId}`,
-      body,
+  create: async (toUserId: string, body: CreateOrderModel) =>
+    legacyResponse(
+      toLegacyOrder(
+        await apiPost<OrderView>(API_URL.orders, {
+          playerId: toUserId,
+          hours: body.totalTimes,
+          message: body.message,
+          gameIds: body.games.map((game) => game.gameId),
+        }),
+      ),
     ),
 
   cancel: async (orderId: string, body: CancelOrderModel) => {
-    await apiPut(`${API_URL.users}/orders/cancel/${orderId}`, body);
+    void body;
+    await apiPost<OrderView>(`${API_URL.orders}/${orderId}/cancel`);
   },
 
   accept: async (orderId: string, body: AcceptOrderModel) => {
-    await apiPut(`${API_URL.users}/orders/${orderId}/process`, body);
+    void body;
+    await apiPost<OrderView>(`${API_URL.orders}/${orderId}/accept`);
   },
 
   reject: async (orderId: string, body: RejectOrderModel) => {
-    await apiPut(`${API_URL.users}/orders/${orderId}/process`, body);
+    await apiPost<OrderView>(`${API_URL.orders}/${orderId}/reject`, {
+      reason: body.reason,
+    });
   },
 
   finish: async (orderId: string) => {
-    await apiPut(`${API_URL.orders}/finish/${orderId}`);
+    await apiPost<OrderView>(`${API_URL.orders}/${orderId}/complete`);
   },
 
   finishSoon: async (orderId: string, body: FinishSoonOrderModel) => {
-    await apiPut(`${API_URL.orders}/finish-soon/${orderId}`, body);
+    await apiPost<OrderView>(`${API_URL.orders}/${orderId}/end-early`, {
+      reason: body.reason,
+    });
   },
 };

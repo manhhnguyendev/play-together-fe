@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { authService } from '@/api/services/auth';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { Button, TextField, useToast } from '@/components/ui';
 import { registerDraft } from '@/features/auth/registerDraft';
@@ -47,12 +46,6 @@ export default function RegisterScreen() {
 
     setSendingOtp(true);
     try {
-      const exists = await authService.checkEmail(email.trim());
-      if (String(exists) === 'true') {
-        toast.show('Email đã được sử dụng', 'error');
-        return;
-      }
-
       const code = generateOtp();
       expectedOtp.current = code;
       setOtpSent(true);

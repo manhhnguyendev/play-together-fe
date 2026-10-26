@@ -22,6 +22,7 @@ export default function PersonalChangePasswordScreen() {
   const router = useRouter();
   const toast = useToast();
   const user = useAuthStore((state) => state.user);
+  const applyAuthResponse = useAuthStore((state) => state.applyAuthResponse);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -52,12 +53,14 @@ export default function PersonalChangePasswordScreen() {
 
     setSubmitting(true);
     try {
-      await authService.changePassword({
+      const auth = await authService.changePassword({
         email: user.email,
         currentPassword,
         newPassword,
         confirmNewPassword: confirmPassword,
       });
+      // v2 rotates the session on password change, so the new tokens must be stored.
+      await applyAuthResponse(auth);
       toast.show('Thay đổi mật khẩu thành công', 'success');
       router.dismissTo('/(tabs)/personal');
     } catch (error) {

@@ -1,8 +1,15 @@
 import { create } from 'zustand';
-import { setAccessToken, setUnauthorizedHandler } from '@/api/client';
+import {
+  getSessionTokens,
+  setSessionTokens,
+  setTokenRefreshHandler,
+  setUnauthorizedHandler,
+  type SessionTokens,
+} from '@/api/client';
 import { authService } from '@/api/services/auth';
 import { userService } from '@/api/services/users';
 import type { LoginModel, UserModel } from '@/api/types';
+import type { AuthResponse } from '@/api/v2/types';
 import { STORAGE_KEYS, storage } from '@/lib/storage';
 
 type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
@@ -13,13 +20,31 @@ interface AuthState {
   user: UserModel | null;
   bootstrap: () => Promise<void>;
   signInWithCredentials: (credentials: LoginModel) => Promise<UserModel>;
-  signInWithToken: (token: string) => Promise<UserModel>;
+  signInWithAuth: (auth: AuthResponse) => Promise<UserModel>;
+  applyAuthResponse: (auth: AuthResponse) => Promise<UserModel>;
   refreshUser: () => Promise<UserModel | null>;
   setUser: (user: UserModel) => void;
   signOut: (options?: { callApi?: boolean }) => Promise<void>;
 }
 
-let signOutHandler: (() => void) | null = null;
+const tokensOf = (auth: AuthResponse): SessionTokens => ({
+  accessToken: auth.accessToken,
+  refreshToken: auth.refreshToken,
+});
+
+const persistTokens = async (tokens: SessionTokens) => {
+  await Promise.all([
+    storage.set(STORAGE_KEYS.token, tokens.accessToken),
+    storage.set(STORAGE_KEYS.refreshToken, tokens.refreshToken),
+  ]);
+};
+
+const clearStoredTokens = async () => {
+  await Promise.all([
+    storage.remove(STORAGE_KEYS.token),
+    storage.remove(STORAGE_KEYS.refreshToken),
+  ]);
+};
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
@@ -27,34 +52,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
 
   bootstrap: async () => {
-    const token = await storage.get(STORAGE_KEYS.token);
-    if (!token) {
-      setAccessToken(null);
+    const [accessToken, refreshToken] = await Promise.all([
+      storage.get(STORAGE_KEYS.token),
+      storage.get(STORAGE_KEYS.refreshToken),
+    ]);
+
+    if (!accessToken || !refreshToken) {
+      setSessionTokens(null);
+      await clearStoredTokens();
       set({ status: 'signedOut', token: null, user: null });
       return;
     }
 
-    setAccessToken(token);
+    const tokens = { accessToken, refreshToken };
+    setSessionTokens(tokens);
+
     try {
       const profile = await userService.getProfile();
-      set({ status: 'signedIn', token, user: profile.content });
+      set({ status: 'signedIn', token: accessToken, user: profile.content });
     } catch {
-      setAccessToken(null);
-      await storage.remove(STORAGE_KEYS.token);
-      set({ status: 'signedOut', token: null, user: null });
+      // The HTTP client already tried to refresh the session; a failure here
+      // means the stored tokens are unusable.
+      if (get().status === 'loading') {
+        await get().signOut({ callApi: false });
+      }
     }
   },
 
   signInWithCredentials: async (credentials) => {
-    const result = await authService.login(credentials);
-    return get().signInWithToken(result.message);
+    const auth = await authService.login(credentials);
+    return get().signInWithAuth(auth);
   },
 
-  signInWithToken: async (token) => {
-    setAccessToken(token);
+  signInWithAuth: async (auth) => get().applyAuthResponse(auth),
+
+  applyAuthResponse: async (auth) => {
+    const tokens = tokensOf(auth);
+    setSessionTokens(tokens);
+    await persistTokens(tokens);
     const profile = await userService.getProfile();
-    await storage.set(STORAGE_KEYS.token, token);
-    set({ status: 'signedIn', token, user: profile.content });
+    set({
+      status: 'signedIn',
+      token: tokens.accessToken,
+      user: profile.content,
+    });
     return profile.content;
   },
 
@@ -68,21 +109,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setUser: (user) => set({ user }),
 
   signOut: async (options) => {
+    const refreshToken = getSessionTokens()?.refreshToken ?? null;
     if (options?.callApi !== false) {
       try {
-        await authService.logout();
+        await authService.logout(refreshToken);
       } catch {
         // Token may already be expired; local sign-out still proceeds.
       }
     }
-    setAccessToken(null);
-    await storage.remove(STORAGE_KEYS.token);
+    setSessionTokens(null);
+    await clearStoredTokens();
     set({ status: 'signedOut', token: null, user: null });
   },
 }));
 
-signOutHandler = () => {
+setUnauthorizedHandler(() => {
   void useAuthStore.getState().signOut({ callApi: false });
-};
+});
 
-setUnauthorizedHandler(signOutHandler);
+setTokenRefreshHandler((tokens) => {
+  void persistTokens(tokens);
+  useAuthStore.setState({ token: tokens.accessToken });
+});

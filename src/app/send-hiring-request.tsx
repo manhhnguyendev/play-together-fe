@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { authService } from '@/api/services/auth';
 import { orderService } from '@/api/services/orders';
 import { userService } from '@/api/services/users';
 import { StatusText } from '@/components/players/StatusText';
@@ -79,15 +78,6 @@ export default function SendHiringRequestScreen() {
       return result.content;
     },
     onSuccess: (order) => {
-      if (player && currentUser) {
-        void authService
-          .sendEmail({
-            toEmail: player.email,
-            subject: 'BẠN CÓ MỘT YÊU CẦU THUÊ',
-            body: `Bạn có một yêu cầu thuê từ ${currentUser.name} yêu cầu sẽ hết hạn sau 5 phút`,
-          })
-          .catch(() => {});
-      }
       void queryClient.invalidateQueries({
         queryKey: queryKeys.home.recentOrders,
       });

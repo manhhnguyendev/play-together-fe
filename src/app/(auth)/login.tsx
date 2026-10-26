@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { authService } from '@/api/services/auth';
+import { ApiError } from '@/api/client';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { GoogleLoginButton } from '@/components/auth/GoogleLoginButton';
 import { Button, TextField, useToast } from '@/components/ui';
@@ -33,11 +33,6 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const exists = await authService.checkEmail(email.trim());
-      if (String(exists) !== 'true') {
-        toast.show('Tên đăng nhập không tồn tại', 'error');
-        return;
-      }
       const user = await signInWithCredentials({
         email: email.trim(),
         password,
@@ -46,7 +41,11 @@ export default function LoginScreen() {
       await continueAfterSignIn(user.id);
     } catch (error) {
       toast.show(
-        error instanceof Error ? error.message : 'Mật khẩu không chính xác',
+        error instanceof ApiError && error.status === 401
+          ? 'Email hoặc mật khẩu không chính xác'
+          : error instanceof Error
+            ? error.message
+            : 'Mật khẩu không chính xác',
         'error',
       );
     } finally {

@@ -1,96 +1,174 @@
-import { apiDelete, apiGet, apiPost, apiPut, buildQuery } from '../client';
+import {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPost,
+  buildQuery,
+} from '../client';
 import { API_URL } from '../endpoints';
 import type {
   AddImageModel,
-  ApiListResponse,
-  ApiResponse,
-  CharityModel,
-  ChatModel,
   CreateFeedBacksModel,
-  GetAllUserModel,
-  ImageModel,
-  NotificationModel,
   RatingCreateModel,
-  RatingModel,
   ReportCommentModel,
   ReportCreateModel,
   ResultRecommendModel,
-  RecommendModel,
-  SearchHistoryModel,
   SendMessageModel,
-  SystemFeedbackDetailModel,
-  SystemFeedbackModel,
-  TransactionModel,
 } from '../types';
+import {
+  legacyArray,
+  legacyList,
+  legacyResponse,
+  toLegacyCharity,
+  toLegacyChat,
+  toLegacyFeedback,
+  toLegacyFeedbackDetail,
+  toLegacyNotification,
+  toLegacyRating,
+  toLegacyRecommendation,
+  toLegacySearchHistory,
+  toLegacyTransaction,
+  toLegacyUserSummary,
+  toWireFeedbackType,
+} from '../v2/mappers';
+import type {
+  CharityView,
+  ChatMessageView,
+  LedgerEntry,
+  LedgerType,
+  MyFeedbackView,
+  NotificationView,
+  Paginated,
+  PlayerSearchQuery,
+  RatingView,
+  RecommendationView,
+  SearchHistoryItem,
+  UserSummary,
+} from '../v2/types';
+
+const recordSearch = (query: string) => {
+  if (!query) return;
+  void apiPost<void>(`${API_URL.searchHistory}`, { query }).catch(
+    () => undefined,
+  );
+};
+
+const TRANSACTION_FILTERS: Record<string, LedgerType> = {
+  'Order|Add': 'ORDER_EARNING',
+  'Order|Sub': 'ESCROW_HOLD',
+  'Deposit|': 'DEPOSIT',
+  'Withdraw|': 'WITHDRAWAL',
+  'Donate|': 'DONATION',
+};
+
+const SEARCH_STATUS: Record<string, 'ONLINE' | 'OFFLINE' | undefined> = {
+  Online: 'ONLINE',
+  Offline: 'OFFLINE',
+};
+
+const searchPlayers = async (query: PlayerSearchQuery) =>
+  legacyList(
+    await apiGet<Paginated<UserSummary>>(
+      `${API_URL.users}${buildQuery({ ...query })}`,
+    ),
+    toLegacyUserSummary,
+  );
 
 export const charityService = {
-  getAll: (pageSize: number) =>
-    apiGet<ApiListResponse<CharityModel>>(
-      `${API_URL.charities}${buildQuery({ IsActive: true, PageSize: pageSize })}`,
+  getAll: async (pageSize: number) =>
+    legacyList(
+      await apiGet<Paginated<CharityView>>(
+        `${API_URL.charities}${buildQuery({ pageSize })}`,
+      ),
+      toLegacyCharity,
     ),
 
-  getById: (id: string) =>
-    apiGet<ApiResponse<CharityModel>>(`${API_URL.charities}/${id}`),
+  getById: async (id: string) =>
+    legacyResponse(
+      toLegacyCharity(await apiGet<CharityView>(`${API_URL.charities}/${id}`)),
+    ),
 
-  search: (name: string) =>
-    apiGet<ApiListResponse<CharityModel>>(
-      `${API_URL.charities}${buildQuery({ Name: name, IsActive: true })}`,
+  search: async (name: string) =>
+    legacyList(
+      await apiGet<Paginated<CharityView>>(
+        `${API_URL.charities}${buildQuery({ q: name, pageSize: 20 })}`,
+      ),
+      toLegacyCharity,
     ),
 };
 
 export const notificationService = {
-  getAll: (pageSize: number) =>
-    apiGet<ApiListResponse<NotificationModel>>(
-      `${API_URL.notification}/${buildQuery({ IsNew: true, PageSize: pageSize })}`,
+  getAll: async (pageSize: number) =>
+    legacyList(
+      await apiGet<Paginated<NotificationView>>(
+        `${API_URL.notifications}${buildQuery({ pageSize })}`,
+      ),
+      toLegacyNotification,
     ),
 
-  getById: (id: string) =>
-    apiGet<ApiResponse<NotificationModel>>(`${API_URL.notification}/${id}`),
+  getById: async (id: string) => {
+    const page = await apiGet<Paginated<NotificationView>>(
+      `${API_URL.notifications}${buildQuery({ pageSize: 100 })}`,
+    );
+    const notification = page.items.find((item) => item.id === id);
+    if (!notification) {
+      throw new ApiError('Không tìm thấy thông báo', 404);
+    }
+    return legacyResponse(toLegacyNotification(notification));
+  },
 };
 
 export const chatService = {
-  getAll: (receiveId: string) =>
-    apiGet<ApiListResponse<ChatModel>>(`${API_URL.chat}/${receiveId}`),
+  getAll: async (receiveId: string) => {
+    const page = await apiGet<Paginated<ChatMessageView>>(
+      `${API_URL.chats}/${receiveId}${buildQuery({ pageSize: 100 })}`,
+    );
+    return legacyArray([...page.items].reverse(), toLegacyChat);
+  },
 
   send: async (receiveId: string, body: SendMessageModel) => {
-    await apiPost(`${API_URL.chat}/${receiveId}`, body);
+    await apiPost<ChatMessageView>(
+      `${API_URL.chats}/${receiveId}/messages`,
+      body,
+    );
   },
 };
 
 export const ratingService = {
   create: async (orderId: string, body: RatingCreateModel) => {
-    await apiPost(`${API_URL.ratings}/${orderId}`, body);
+    await apiPost(`${API_URL.orders}/${orderId}/ratings`, body);
   },
 
   reportComment: async (rateId: string, body: ReportCommentModel) => {
-    await apiPut(`${API_URL.ratings}/violate/${rateId}`, body);
+    await apiPost(`${API_URL.ratings}/${rateId}/flag`, body);
   },
 
-  getAll: (userId: string, vote: number, pageSize: number) =>
-    apiGet<ApiListResponse<RatingModel>>(
-      `${API_URL.users}/${userId}/ratings${buildQuery({
-        Vote: vote,
-        IsNew: true,
-        PageSize: pageSize,
-      })}`,
+  getAll: async (userId: string, vote: number, pageSize: number) =>
+    legacyList(
+      await apiGet<Paginated<RatingView>>(
+        `${API_URL.users}/${userId}/ratings${buildQuery({
+          rate: vote || undefined,
+          sort: 'newest',
+          pageSize,
+        })}`,
+      ),
+      toLegacyRating,
     ),
 };
 
 export const reportService = {
   create: async (orderId: string, body: ReportCreateModel) => {
-    await apiPost(`${API_URL.reports}/${orderId}`, body);
+    await apiPost(`${API_URL.orders}/${orderId}/reports`, {
+      message: body.reportMessage,
+    });
   },
 };
 
 export const searchService = {
-  searchUser: (search: string, pageSize: number) =>
-    apiGet<ApiListResponse<GetAllUserModel>>(
-      `${API_URL.users}${buildQuery({
-        Search: search,
-        IsPlayer: true,
-        PageSize: pageSize,
-      })}`,
-    ),
+  searchUser: (search: string, pageSize: number) => {
+    recordSearch(search.trim());
+    return searchPlayers({ q: search, sort: 'ranking', pageSize });
+  },
 
   searchUserByFilter: (
     search: string,
@@ -107,87 +185,111 @@ export const searchService = {
       endPrice: number;
     },
   ) => {
-    const gender =
-      filter.isMale && !filter.isFemale
-        ? 'true'
-        : !filter.isMale && filter.isFemale
-          ? 'false'
-          : '';
-    return apiGet<ApiListResponse<GetAllUserModel>>(
-      `${API_URL.users}${buildQuery({
-        Search: search,
-        Gender: gender,
-        GameId: filter.gameId,
-        Status: filter.status,
-        IsOrderByName: filter.sortByAlphabet,
-        IsOrderByRating: filter.sortByRating,
-        IsOrderByPricing: filter.sortByPrice,
-        IsSkillSameHobbies: filter.sortByHobby,
-        IsPlayer: true,
-        FromPrice: filter.startPrice,
-        ToPrice: filter.endPrice,
-      })}`,
-    );
+    recordSearch(search.trim());
+    const gameId = filter.gameId.split(' ')[0];
+    return searchPlayers({
+      q: search,
+      gameId: gameId || undefined,
+      status: SEARCH_STATUS[filter.status],
+      minPrice: filter.startPrice,
+      maxPrice: filter.endPrice,
+      sort: filter.sortByRating
+        ? 'rating'
+        : filter.sortByPrice
+          ? 'price_asc'
+          : 'ranking',
+      pageSize: 20,
+    });
   },
 };
 
 export const searchHistoryService = {
-  getAll: () =>
-    apiGet<ApiListResponse<SearchHistoryModel>>(
-      `${API_URL.searchHistories}${buildQuery({ IsNew: true, PageSize: 5 })}`,
+  getAll: async () =>
+    legacyArray(
+      await apiGet<SearchHistoryItem[]>(
+        `${API_URL.searchHistory}${buildQuery({ limit: 5 })}`,
+      ),
+      toLegacySearchHistory,
     ),
 
-  getHot: () =>
-    apiGet<ApiListResponse<SearchHistoryModel>>(
-      `${API_URL.searchHistories}${buildQuery({
-        IsHotSearch: true,
-        PageSize: 5,
-      })}`,
+  getHot: async () =>
+    legacyArray<SearchHistoryItem, ReturnType<typeof toLegacySearchHistory>>(
+      [],
+      toLegacySearchHistory,
     ),
 };
 
 export const transactionService = {
-  getAll: (type: string, operation: string, pageSize: number) =>
-    apiGet<ApiListResponse<TransactionModel>>(
-      `${API_URL.users}/transactions${buildQuery({
-        IsNew: true,
-        Type: type,
-        Operation: operation,
-        PageSize: pageSize,
-      })}`,
+  getAll: async (type: string, operation: string, pageSize: number) =>
+    legacyList(
+      await apiGet<Paginated<LedgerEntry>>(
+        `${API_URL.wallet}/transactions${buildQuery({
+          type: TRANSACTION_FILTERS[`${type}|${operation}`],
+          pageSize,
+        })}`,
+      ),
+      toLegacyTransaction,
     ),
 };
 
 export const feedbackService = {
-  getAll: () =>
-    apiGet<ApiListResponse<SystemFeedbackModel>>(
-      `${API_URL.feedback}${buildQuery({ IsNew: true, GetAll: true })}`,
+  getAll: async () =>
+    legacyList(
+      await apiGet<Paginated<MyFeedbackView>>(
+        `${API_URL.feedback}/mine${buildQuery({ pageSize: 100 })}`,
+      ),
+      toLegacyFeedback,
     ),
 
-  getDetail: (feedbackId: string) =>
-    apiGet<ApiResponse<SystemFeedbackDetailModel>>(
-      `${API_URL.feedback}/${feedbackId}`,
-    ),
+  getDetail: async (feedbackId: string) => {
+    const page = await apiGet<Paginated<MyFeedbackView>>(
+      `${API_URL.feedback}/mine${buildQuery({ pageSize: 100 })}`,
+    );
+    const feedback = page.items.find((item) => item.id === feedbackId);
+    if (!feedback) {
+      throw new ApiError('Không tìm thấy phản hồi', 404);
+    }
+    return legacyResponse(toLegacyFeedbackDetail(feedback));
+  },
 
   create: async (body: CreateFeedBacksModel) => {
-    await apiPost(API_URL.feedback, body);
+    await apiPost(`${API_URL.feedback}`, {
+      title: body.title,
+      message: body.message,
+      type: toWireFeedbackType(body.typeOfFeedback),
+    });
   },
 };
 
 export const recommendService = {
-  predict: (body: RecommendModel[]) =>
-    apiPost<ResultRecommendModel[]>(API_URL.recommend, body),
+  predict: async (body: { userId: string; playerId: string }[]) => {
+    const recommendations = await apiGet<RecommendationView[]>(
+      `${API_URL.recommendations}/players${buildQuery({
+        limit: Math.min(Math.max(body.length, 1), 50),
+      })}`,
+    );
+    return recommendations.map<ResultRecommendModel>(toLegacyRecommendation);
+  },
 };
 
 export const imageService = {
   addMulti: async (images: AddImageModel[]) => {
-    await apiPost(`${API_URL.images}/multi-images`, images);
+    await Promise.all(
+      images.map((image) =>
+        apiPost(`${API_URL.users}/me/images`, { url: image.imageLink }),
+      ),
+    );
   },
 
-  add: (body: AddImageModel) =>
-    apiPost<ApiResponse<ImageModel>>(API_URL.images, body),
+  add: async (body: AddImageModel) => {
+    const image = await apiPost<{ id: string; url: string }>(
+      `${API_URL.users}/me/images`,
+      { url: body.imageLink },
+    );
+    return legacyResponse({ id: image.id, imageLink: image.url });
+  },
 
   remove: async (imageId: string) => {
-    await apiDelete(`${API_URL.images}/${imageId}`);
+    await apiDelete(`${API_URL.users}/me/images/${imageId}`);
   },
 };

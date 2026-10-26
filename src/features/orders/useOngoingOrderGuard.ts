@@ -28,77 +28,72 @@ export function useOngoingOrderGuard() {
       }
     };
 
+    const resumeProcessing = async (order: OrderModel, asPlayer: boolean) => {
+      const expiredIn = secondsBetween(
+        new Date().toISOString(),
+        order.processExpired,
+      );
+      if (expiredIn <= 0) {
+        if (asPlayer) {
+          await orderService
+            .reject(order.id, {
+              isAccept: false,
+              reason: 'Quá thời gian chấp thuận',
+            })
+            .catch(() => undefined);
+        } else {
+          await orderService
+            .cancel(order.id, { reason: 'Quá thời gian gửi yêu cầu' })
+            .catch(() => undefined);
+        }
+        return;
+      }
+      if (expiredIn > 1) {
+        router.push(
+          asPlayer
+            ? `/receive-request/${order.id}`
+            : `/hiring-negotiating/${order.id}`,
+        );
+      }
+    };
+
     const run = async () => {
-      let profile;
       try {
-        profile = await refreshUser();
+        const profile = await refreshUser();
+        if (!profile || cancelled) return;
+        if ((profile.status ?? '').includes('Maintain')) {
+          await signOut({ callApi: false });
+          return;
+        }
       } catch {
         return;
       }
-      if (!profile || cancelled) return;
-
-      const status = profile.status ?? '';
-      if (status.includes('Maintain')) {
-        await signOut({ callApi: false });
-        return;
-      }
-      if (!status.includes('Hiring') && !status.includes('Processing')) return;
 
       try {
-        if (status.includes('Hiring')) {
-          const own = await orderService.getOrdersOfUser('Starting');
-          if (cancelled) return;
-          const ownOrder = own.content[0];
-          if (ownOrder && ownOrder.userId === profile.id) {
-            await resumeStarting(ownOrder);
-            return;
-          }
+        const [ownStarting, ownProcessing, requestStarting, requestProcessing] =
+          await Promise.all([
+            orderService.getOrdersOfUser('Starting'),
+            orderService.getOrdersOfUser('Processing'),
+            orderService.getRequestsOfPlayer('Starting'),
+            orderService.getRequestsOfPlayer('Processing'),
+          ]);
+        if (cancelled) return;
 
-          const requests = await orderService.getRequestsOfPlayer('Starting');
-          if (cancelled) return;
-          const request = requests.content[0];
-          if (request && request.toUserId === profile.id) {
-            await resumeStarting(request);
-          }
+        const started = ownStarting.content[0] ?? requestStarting.content[0];
+        if (started) {
+          await resumeStarting(started);
           return;
         }
 
-        const own = await orderService.getOrdersOfUser('Processing');
-        if (cancelled) return;
-        const ownOrder = own.content[0];
-        if (ownOrder && ownOrder.userId === profile.id) {
-          const expiredIn = secondsBetween(
-            new Date().toISOString(),
-            ownOrder.processExpired,
-          );
-          if (expiredIn <= 0) {
-            await orderService
-              .cancel(ownOrder.id, { reason: 'Quá thời gian gửi yêu cầu' })
-              .catch(() => undefined);
-          } else if (expiredIn > 1) {
-            router.push(`/hiring-negotiating/${ownOrder.id}`);
-          }
+        const pendingOwn = ownProcessing.content[0];
+        if (pendingOwn) {
+          await resumeProcessing(pendingOwn, false);
           return;
         }
 
-        const requests = await orderService.getRequestsOfPlayer('Processing');
-        if (cancelled) return;
-        const request = requests.content[0];
-        if (request && request.toUserId === profile.id) {
-          const expiredIn = secondsBetween(
-            new Date().toISOString(),
-            request.processExpired,
-          );
-          if (expiredIn < 0) {
-            await orderService
-              .reject(request.id, {
-                isAccept: false,
-                reason: 'Quá thời gian chấp thuận',
-              })
-              .catch(() => undefined);
-          } else if (expiredIn > 1) {
-            router.push(`/receive-request/${request.id}`);
-          }
+        const pendingRequest = requestProcessing.content[0];
+        if (pendingRequest) {
+          await resumeProcessing(pendingRequest, true);
         }
       } catch {
         // Resuming an order is best-effort; a failed check should not block home.

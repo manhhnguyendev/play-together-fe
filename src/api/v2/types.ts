@@ -25,7 +25,13 @@ export interface Paginated<T> {
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 export type UserStatus = 'ONLINE' | 'OFFLINE' | 'BUSY' | 'MAINTAIN';
-export type PlayerSort = 'ranking' | 'rating' | 'price_asc' | 'price_desc' | 'newest';
+export type PlayerSort =
+  | 'ranking'
+  | 'rating'
+  | 'price_asc'
+  | 'price_desc'
+  | 'newest'
+  | 'name';
 
 export interface UserSummary {
   id: string;
@@ -44,6 +50,7 @@ export interface UserSummary {
   ratingCount: number;
   ordersCount: number;
   completedOrdersCount: number;
+  onTimeCount: number;
   totalHours: number;
   rankingPoints: number;
   createdAt: string;
@@ -318,10 +325,43 @@ export interface ReportView {
 export interface PlayerSearchQuery {
   q?: string;
   gameId?: string;
+  hobbyId?: string;
+  genders?: Gender[];
+  initial?: string;
   status?: 'ONLINE' | 'OFFLINE';
   minPrice?: number;
   maxPrice?: number;
+  minRating?: number;
   sort?: PlayerSort;
   page?: number;
   pageSize?: number;
+}
+
+export interface HotSearchItem {
+  query: string;
+  searches: number;
+}
+
+export interface FavoriteGameItem {
+  id: string;
+  name: string;
+  displayName: string | null;
+  favoritedAt: string;
+}
+
+export interface MostFavoritedGame {
+  id: string;
+  name: string;
+  displayName: string | null;
+  favoriteCount: number;
+}
+
+export interface EarningsSummary {
+  today: number;
+  thisMonth: number;
+  total: number;
+}
+
+export interface ReleasePendingCreditsResult {
+  released: number;
 }

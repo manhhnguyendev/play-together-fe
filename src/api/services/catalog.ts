@@ -18,7 +18,9 @@ import {
 } from '../v2/mappers';
 import type {
   AvailabilityWindow,
+  FavoriteGameItem,
   GameView,
+  MostFavoritedGame,
   Paginated,
   RankView,
   UserProfile,
@@ -37,10 +39,38 @@ export const gameService = {
     ),
 
   getMostFavorite: async () =>
-    legacyList(
-      await apiGet<Paginated<GameView>>(`${API_URL.games}?pageSize=8`),
-      toLegacyGame,
+    legacyArray(
+      await apiGet<MostFavoritedGame[]>(
+        `${API_URL.games}/most-favorited?limit=8`,
+      ),
+      (game) =>
+        toLegacyGame({
+          id: game.id,
+          name: game.name,
+          displayName: game.displayName,
+          otherNames: null,
+        }),
     ),
+
+  getFavorites: async () =>
+    legacyArray(
+      await apiGet<FavoriteGameItem[]>(`${API_URL.users}/me/favorites`),
+      (game) =>
+        toLegacyGame({
+          id: game.id,
+          name: game.name,
+          displayName: game.displayName,
+          otherNames: null,
+        }),
+    ),
+
+  addFavorite: async (gameId: string) => {
+    await apiPost<void>(`${API_URL.users}/me/favorites`, { gameId });
+  },
+
+  removeFavorite: async (gameId: string) => {
+    await apiDelete<void>(`${API_URL.users}/me/favorites/${gameId}`);
+  },
 
   getAllRanks: async (gameId: string) =>
     legacyArray(

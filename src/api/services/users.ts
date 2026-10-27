@@ -22,10 +22,11 @@ import {
   toLegacyUserSummary,
 } from '../v2/mappers';
 import type {
-  LedgerEntry,
+  EarningsSummary,
   OrderView,
   Paginated,
   RecommendationView,
+  ReleasePendingCreditsResult,
   UserProfile,
   UserSummary,
   WalletSummary,
@@ -127,39 +128,18 @@ export const userService = {
   },
 
   getStatistic: async () => {
-    const [profile, ledger] = await Promise.all([
+    const [profile, earnings] = await Promise.all([
       apiGet<UserProfile>(`${API_URL.users}/me`),
-      apiGet<Paginated<LedgerEntry>>(
-        `${API_URL.wallet}/transactions${buildQuery({
-          type: 'ORDER_EARNING',
-          pageSize: 100,
-        })}`,
-      ),
+      apiGet<EarningsSummary>(`${API_URL.wallet}/earnings/summary`),
     ]);
-
-    const now = new Date();
-    const today = now.toDateString();
-    const month = now.getMonth();
-    const year = now.getFullYear();
-    let todayRevenue = 0;
-    let monthRevenue = 0;
-
-    for (const entry of ledger.items) {
-      const created = new Date(entry.createdAt);
-      if (Number.isNaN(created.getTime())) continue;
-      if (created.getMonth() === month && created.getFullYear() === year) {
-        monthRevenue += entry.amount;
-      }
-      if (created.toDateString() === today) todayRevenue += entry.amount;
-    }
 
     const completion = profile.ordersCount
       ? Math.round((profile.completedOrdersCount / profile.ordersCount) * 100)
       : 0;
 
     return legacyResponse({
-      item1: todayRevenue,
-      item2: monthRevenue,
+      item1: earnings.today,
+      item2: earnings.thisMonth,
       item3: completion,
       item4: completion,
     });
@@ -192,14 +172,20 @@ export const userService = {
   },
 
   updateServiceInfo: async (body: ServiceUserModel) => {
+    const profile = await apiGet<UserProfile>(`${API_URL.users}/me`);
     await apiPatch(`${API_URL.users}/me/player-mode`, {
-      enabled: true,
+      enabled: profile.isPlayer,
       pricePerHour: body.pricePerHour,
       maxHoursPerHire: body.maxHourHire,
     });
   },
 
-  releaseUnActiveBalance: async () => undefined,
+  releaseUnActiveBalance: async () => {
+    const result = await apiPost<ReleasePendingCreditsResult>(
+      `${API_URL.wallet}/pending-credits/release`,
+    );
+    return result.released;
+  },
 
   deposit: async (body: DepositModel) => {
     await apiPost(`${API_URL.wallet}/deposits`, { amount: body.money });

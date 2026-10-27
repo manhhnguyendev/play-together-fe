@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export interface DiscoveryFilters {
   sortOrder: number;
   statusOrder: number;
+  initial: string;
   isMale: boolean;
   isFemale: boolean;
   startPrice: number;
@@ -14,6 +15,7 @@ export interface DiscoveryFilters {
 export const DEFAULT_FILTERS: DiscoveryFilters = {
   sortOrder: 0,
   statusOrder: 0,
+  initial: '',
   isMale: true,
   isFemale: true,
   startPrice: 10000,

@@ -46,6 +46,8 @@ const PRICE_PRESETS = [
 
 const MAX_PRICE = 5000000;
 
+const INITIALS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
 export default function FilterScreen() {
   const router = useRouter();
   const applyFilters = useDiscoveryFilter((state) => state.apply);
@@ -154,6 +156,40 @@ export default function FilterScreen() {
               }
             />
           </View>
+        </View>
+
+        <Divider />
+
+        <SectionLabel>Chữ cái đầu của tên</SectionLabel>
+        <View style={styles.letterGrid}>
+          {INITIALS.map((letter) => {
+            const selected = draft.initial === letter;
+            return (
+              <Pressable
+                key={letter}
+                onPress={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    initial: current.initial === letter ? '' : letter,
+                  }))
+                }
+                style={({ pressed }) => [
+                  styles.letterChip,
+                  selected && styles.letterChipActive,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.letterText,
+                    selected && styles.letterTextActive,
+                  ]}
+                >
+                  {letter}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         <Divider />
@@ -354,6 +390,33 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   checkboxItem: { flex: 1 },
+  letterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingVertical: spacing.xs,
+  },
+  letterChip: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  letterChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
+  },
+  letterText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  letterTextActive: {
+    color: colors.primaryDark,
+  },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',

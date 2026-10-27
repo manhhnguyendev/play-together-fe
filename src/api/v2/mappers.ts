@@ -193,7 +193,7 @@ export const toLegacyUserProfile = (
   numOfRate: profile.ratingCount,
   numOfOrder: profile.ordersCount,
   totalTimeOrder: profile.totalHours,
-  numOfFinishOnTime: profile.completedOrdersCount,
+  numOfFinishOnTime: profile.onTimeCount,
   behaviorPoint: {
     id: profile.id,
     point: profile.behavior.points,

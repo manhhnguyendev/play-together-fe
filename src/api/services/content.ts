@@ -34,6 +34,8 @@ import {
 import type {
   CharityView,
   ChatMessageView,
+  Gender,
+  HotSearchItem,
   LedgerEntry,
   LedgerType,
   MyFeedbackView,
@@ -69,7 +71,10 @@ const SEARCH_STATUS: Record<string, 'ONLINE' | 'OFFLINE' | undefined> = {
 const searchPlayers = async (query: PlayerSearchQuery) =>
   legacyList(
     await apiGet<Paginated<UserSummary>>(
-      `${API_URL.users}${buildQuery({ ...query })}`,
+      `${API_URL.users}${buildQuery({
+        ...query,
+        genders: query.genders?.join(','),
+      })}`,
     ),
     toLegacyUserSummary,
   );
@@ -176,6 +181,7 @@ export const searchService = {
       isMale: boolean;
       isFemale: boolean;
       gameId: string;
+      initial: string;
       status: string;
       sortByAlphabet: boolean;
       sortByRating: boolean;
@@ -187,17 +193,27 @@ export const searchService = {
   ) => {
     recordSearch(search.trim());
     const gameId = filter.gameId.split(' ')[0];
+    const genders: Gender[] | undefined =
+      filter.isMale === filter.isFemale
+        ? undefined
+        : [filter.isMale ? 'MALE' : 'FEMALE'];
+
     return searchPlayers({
       q: search,
-      gameId: gameId || undefined,
+      gameId: gameId && !filter.sortByHobby ? gameId : undefined,
+      hobbyId: gameId && filter.sortByHobby ? gameId : undefined,
+      genders,
+      initial: filter.initial || undefined,
       status: SEARCH_STATUS[filter.status],
       minPrice: filter.startPrice,
       maxPrice: filter.endPrice,
-      sort: filter.sortByRating
-        ? 'rating'
-        : filter.sortByPrice
-          ? 'price_asc'
-          : 'ranking',
+      sort: filter.sortByAlphabet
+        ? 'name'
+        : filter.sortByRating
+          ? 'rating'
+          : filter.sortByPrice
+            ? 'price_asc'
+            : 'ranking',
       pageSize: 20,
     });
   },
@@ -212,11 +228,15 @@ export const searchHistoryService = {
       toLegacySearchHistory,
     ),
 
-  getHot: async () =>
-    legacyArray<SearchHistoryItem, ReturnType<typeof toLegacySearchHistory>>(
-      [],
-      toLegacySearchHistory,
-    ),
+  getHot: async () => {
+    const items = await apiGet<HotSearchItem[]>(
+      `${API_URL.searchHistory}/hot${buildQuery({ limit: 10 })}`,
+    );
+    return legacyArray(items, (item) => ({
+      id: item.query,
+      searchString: item.query,
+    }));
+  },
 };
 
 export const transactionService = {
@@ -241,16 +261,12 @@ export const feedbackService = {
       toLegacyFeedback,
     ),
 
-  getDetail: async (feedbackId: string) => {
-    const page = await apiGet<Paginated<MyFeedbackView>>(
-      `${API_URL.feedback}/mine${buildQuery({ pageSize: 100 })}`,
-    );
-    const feedback = page.items.find((item) => item.id === feedbackId);
-    if (!feedback) {
-      throw new ApiError('Không tìm thấy phản hồi', 404);
-    }
-    return legacyResponse(toLegacyFeedbackDetail(feedback));
-  },
+  getDetail: async (feedbackId: string) =>
+    legacyResponse(
+      toLegacyFeedbackDetail(
+        await apiGet<MyFeedbackView>(`${API_URL.feedback}/${feedbackId}`),
+      ),
+    ),
 
   create: async (body: CreateFeedBacksModel) => {
     await apiPost(`${API_URL.feedback}`, {

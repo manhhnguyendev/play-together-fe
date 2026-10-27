@@ -41,35 +41,23 @@ export const orderService = {
 
   getDetailById: async (orderId: string) => {
     const order = await fetchOrder(orderId);
-    const [hirerRatings, playerRatings, reports] = await Promise.all([
-      apiGet<Paginated<RatingView>>(
-        `${API_URL.users}/${order.hirer.id}/ratings?pageSize=100`,
-      ),
-      apiGet<Paginated<RatingView>>(
-        `${API_URL.users}/${order.player.id}/ratings?pageSize=100`,
-      ),
+    const [ratings, reports] = await Promise.all([
+      order.hasRated
+        ? apiGet<RatingView[]>(`${API_URL.orders}/${orderId}/ratings`)
+        : Promise.resolve<RatingView[]>([]),
       apiGet<Paginated<ReportView>>(
         `${API_URL.reports}/mine${buildQuery({
           scope: 'submitted',
+          orderId,
           pageSize: 100,
         })}`,
       ),
     ]);
 
-    const ratings = order.hasRated
-      ? [...hirerRatings.items, ...playerRatings.items].filter(
-          (rating, index, all) =>
-            rating.orderId === orderId &&
-            all.findIndex((item) => item.id === rating.id) === index,
-        )
-      : [];
-
     const detail: OrderDetailModel = {
       ...toLegacyOrder(order),
       ratings: ratings.map(toLegacyOrderRating),
-      reports: reports.items
-        .filter((report) => report.orderId === orderId)
-        .map(toLegacyReportOrder),
+      reports: reports.items.map(toLegacyReportOrder),
     };
 
     return legacyResponse(detail);

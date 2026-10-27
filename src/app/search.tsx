@@ -78,6 +78,7 @@ export default function SearchScreen() {
           isMale: filters.isMale,
           isFemale: filters.isFemale,
           gameId: filters.gameIds.join(' '),
+          initial: filters.initial,
           status: STATUS_BY_ORDER[filters.statusOrder] ?? '',
           sortByAlphabet: filters.sortOrder === 4,
           sortByRating: filters.sortOrder === 2,

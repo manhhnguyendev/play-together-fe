@@ -1,18 +1,21 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { authService } from '@/api/services/auth';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { Button, TextField, useToast } from '@/components/ui';
 import { passwordResetDraft } from '@/features/auth/passwordResetDraft';
-import { deliverOtp, generateOtp, OTP_LENGTH } from '@/lib/otp';
-import { isSixDigitOtp, messages, validateEmail } from '@/lib/validators';
+import {
+  isSixDigitOtp,
+  messages,
+  OTP_LENGTH,
+  validateEmail,
+} from '@/lib/validators';
 import { colors, fonts, spacing } from '@/theme';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const toast = useToast();
-  const expectedOtp = useRef('');
 
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -20,8 +23,9 @@ export default function ForgotPasswordScreen() {
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [sendingOtp, setSendingOtp] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const requestOtp = async () => {
     const emailValidation = validateEmail(email);
@@ -30,17 +34,18 @@ export default function ForgotPasswordScreen() {
 
     setSendingOtp(true);
     try {
-      const code = generateOtp();
-      expectedOtp.current = code;
+      const result = await authService.requestOtp(
+        email.trim(),
+        'PASSWORD_RESET',
+      );
       setOtpSent(true);
       setVerified(false);
+      setResetToken(null);
       setOtp('');
-
-      const delivered = await deliverOtp(email.trim(), code);
-      if (delivered) {
-        toast.show('Lấy mã OTP thành công', 'success');
+      if (result.devCode) {
+        toast.show(`Môi trường DEV - mã OTP: ${result.devCode}`, 'info');
       } else {
-        toast.show(`Môi trường DEV - mã OTP: ${code}`, 'info');
+        toast.show('Đã gửi mã OTP tới email của bạn', 'success');
       }
     } catch (error) {
       toast.show(
@@ -52,7 +57,7 @@ export default function ForgotPasswordScreen() {
     }
   };
 
-  const verifyOtp = () => {
+  const verifyOtp = async () => {
     if (!otpSent) {
       toast.show('Vui lòng lấy mã OTP trước', 'error');
       return;
@@ -61,41 +66,42 @@ export default function ForgotPasswordScreen() {
       setOtpError(messages.otpNull);
       return;
     }
-    if (otp !== expectedOtp.current) {
-      setOtpError('Mã OTP không chính xác');
-      toast.show('Mã OTP không chính xác', 'error');
-      return;
+
+    setVerifying(true);
+    try {
+      const result = await authService.verifyOtp(
+        email.trim(),
+        'PASSWORD_RESET',
+        otp,
+      );
+      setOtpError(null);
+      setResetToken(result.resetToken ?? null);
+      setVerified(true);
+      toast.show('Xác thực thành công', 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Mã OTP không chính xác';
+      setOtpError(message);
+      toast.show(message, 'error');
+    } finally {
+      setVerifying(false);
     }
-    setOtpError(null);
-    setVerified(true);
-    toast.show('Xác thực thành công', 'success');
   };
 
-  const submit = async () => {
+  const submit = () => {
     const emailValidation = validateEmail(email);
     const otpValidation = isSixDigitOtp(otp) ? null : messages.otpNull;
     setEmailError(emailValidation);
     setOtpError(otpValidation);
 
-    if (!verified) {
+    if (!verified || !resetToken) {
       toast.show('Vui lòng xác thực email', 'error');
       return;
     }
     if (emailValidation || otpValidation) return;
 
-    setSubmitting(true);
-    try {
-      const token = await authService.resetPasswordToken({ email: email.trim() });
-      passwordResetDraft.set({ email: email.trim(), token: token.message });
-      router.push('/(auth)/change-password');
-    } catch (error) {
-      toast.show(
-        error instanceof Error ? error.message : 'Không thể đặt lại mật khẩu',
-        'error',
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    passwordResetDraft.set({ email: email.trim(), token: resetToken });
+    router.push('/(auth)/change-password');
   };
 
   return (
@@ -116,7 +122,9 @@ export default function ForgotPasswordScreen() {
           error={emailError}
           onChangeText={(value) => {
             setEmail(value);
+            setOtpSent(false);
             setVerified(false);
+            setResetToken(null);
             if (emailError) setEmailError(null);
           }}
         />
@@ -143,6 +151,8 @@ export default function ForgotPasswordScreen() {
           error={otpError}
           onChangeText={(value) => {
             setOtp(value.replace(/[^0-9]/g, ''));
+            setVerified(false);
+            setResetToken(null);
             if (otpError) setOtpError(null);
           }}
         />
@@ -152,6 +162,7 @@ export default function ForgotPasswordScreen() {
           variant={verified ? 'primary' : 'secondary'}
           fullWidth={false}
           disabled={verified}
+          loading={verifying}
           onPress={verifyOtp}
           style={styles.otpButton}
         />
@@ -160,7 +171,6 @@ export default function ForgotPasswordScreen() {
       <Button
         label="TIẾP TỤC"
         size="lg"
-        loading={submitting}
         onPress={submit}
       />
 

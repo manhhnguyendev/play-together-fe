@@ -12,6 +12,7 @@ export const queryKeys = {
   searchHistory: ['search-history'] as const,
   hotSearch: ['search-history', 'hot'] as const,
   favoriteGames: ['games', 'favorite'] as const,
+  mostFavoritedGames: ['games', 'most-favorited'] as const,
   allGames: ['games', 'all'] as const,
   player: (id: string) => ['player', id] as const,
   gamesOfUser: (id: string) => ['users', id, 'games'] as const,

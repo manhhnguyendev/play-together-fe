@@ -42,4 +42,6 @@ export const validateConfirmPassword = (
   return null;
 };
 
+export const OTP_LENGTH = 6;
+
 export const isSixDigitOtp = (value: string) => /^\d{6}$/.test(value);

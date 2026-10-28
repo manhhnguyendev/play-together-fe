@@ -2,17 +2,17 @@ import { ApiError, apiPost } from '../client';
 import { API_URL } from '../endpoints';
 import type {
   ChangePasswordModel,
-  EmailModel,
   LoginGoogleModel,
   LoginModel,
   RegisterModel,
   ResetPasswordModel,
-  TokenModel,
 } from '../types';
 import type {
   AuthResponse,
-  ForgotPasswordResponse,
+  OtpPurpose,
+  RequestOtpResponse,
   TokenPair,
+  VerifyOtpResponse,
 } from '../v2/types';
 
 const toDateOnly = (value: string): string => value.slice(0, 10);
@@ -44,27 +44,21 @@ export const authService = {
   refresh: (refreshToken: string) =>
     apiPost<TokenPair>(`${API_URL.auth}/refresh`, { refreshToken }),
 
-  requestPasswordReset: (email: string) =>
-    apiPost<ForgotPasswordResponse>(`${API_URL.auth}/password/forgot`, {
+  requestOtp: (email: string, purpose: OtpPurpose) =>
+    apiPost<RequestOtpResponse>(`${API_URL.auth}/otp/request`, {
       email,
+      purpose,
     }),
 
-  resetPasswordToken: async (body: EmailModel) => {
-    const result = await apiPost<ForgotPasswordResponse>(
-      `${API_URL.auth}/password/forgot`,
-      { email: body.email },
+  verifyOtp: async (email: string, purpose: OtpPurpose, code: string) => {
+    const result = await apiPost<VerifyOtpResponse>(
+      `${API_URL.auth}/otp/verify`,
+      { email, purpose, code },
     );
-    if (!result.resetToken) {
-      throw new ApiError(
-        'Mã đặt lại mật khẩu đã được gửi tới email của bạn.',
-        202,
-      );
+    if (purpose === 'PASSWORD_RESET' && !result.resetToken) {
+      throw new ApiError('Không nhận được mã đặt lại mật khẩu.', 500);
     }
-    return {
-      message: result.resetToken,
-      success: true,
-      expireDate: '',
-    } satisfies TokenModel;
+    return result;
   },
 
   resetPassword: async (body: ResetPasswordModel) => {

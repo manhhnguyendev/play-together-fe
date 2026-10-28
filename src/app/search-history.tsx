@@ -34,7 +34,7 @@ export default function SearchHistoryScreen() {
   });
 
   const gamesQuery = useQuery({
-    queryKey: queryKeys.favoriteGames,
+    queryKey: queryKeys.mostFavoritedGames,
     queryFn: async () => (await gameService.getMostFavorite()).content,
   });
 

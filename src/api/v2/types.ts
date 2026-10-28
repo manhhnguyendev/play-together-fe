@@ -103,8 +103,16 @@ export interface AuthResponse extends TokenPair {
   user: UserSummary;
 }
 
-export interface ForgotPasswordResponse {
+export type OtpPurpose = 'REGISTER' | 'PASSWORD_RESET';
+
+export interface RequestOtpResponse {
   message: string;
+  expiresInSeconds: number;
+  devCode?: string;
+}
+
+export interface VerifyOtpResponse {
+  verified: boolean;
   resetToken?: string;
 }
 

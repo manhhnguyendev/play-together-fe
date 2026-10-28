@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { authService } from '@/api/services/auth';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { Button, TextField, useToast } from '@/components/ui';
 import { registerDraft } from '@/features/auth/registerDraft';
-import { deliverOtp, generateOtp, OTP_LENGTH } from '@/lib/otp';
 import {
   isSixDigitOtp,
   messages,
+  OTP_LENGTH,
   validateConfirmPassword,
   validateEmail,
   validateStrongPassword,
@@ -24,7 +25,6 @@ interface RegisterErrors {
 export default function RegisterScreen() {
   const router = useRouter();
   const toast = useToast();
-  const expectedOtp = useRef('');
 
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -34,6 +34,7 @@ export default function RegisterScreen() {
   const [otpSent, setOtpSent] = useState(false);
   const [verified, setVerified] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const clearError = (field: keyof RegisterErrors) =>
@@ -46,17 +47,14 @@ export default function RegisterScreen() {
 
     setSendingOtp(true);
     try {
-      const code = generateOtp();
-      expectedOtp.current = code;
+      const result = await authService.requestOtp(email.trim(), 'REGISTER');
       setOtpSent(true);
       setVerified(false);
       setOtp('');
-
-      const delivered = await deliverOtp(email.trim(), code);
-      if (delivered) {
-        toast.show('Lấy mã OTP thành công', 'success');
+      if (result.devCode) {
+        toast.show(`Môi trường DEV - mã OTP: ${result.devCode}`, 'info');
       } else {
-        toast.show(`Môi trường DEV - mã OTP: ${code}`, 'info');
+        toast.show('Đã gửi mã OTP tới email của bạn', 'success');
       }
     } catch (error) {
       toast.show(
@@ -68,7 +66,7 @@ export default function RegisterScreen() {
     }
   };
 
-  const verifyOtp = () => {
+  const verifyOtp = async () => {
     if (!otpSent) {
       toast.show('Vui lòng lấy mã OTP trước', 'error');
       return;
@@ -77,14 +75,21 @@ export default function RegisterScreen() {
       setErrors((prev) => ({ ...prev, otp: messages.otpNull }));
       return;
     }
-    if (otp !== expectedOtp.current) {
-      setErrors((prev) => ({ ...prev, otp: 'Mã OTP không chính xác' }));
-      toast.show('Mã OTP không chính xác', 'error');
-      return;
+
+    setVerifying(true);
+    try {
+      await authService.verifyOtp(email.trim(), 'REGISTER', otp);
+      setErrors((prev) => ({ ...prev, otp: null }));
+      setVerified(true);
+      toast.show('Xác thực thành công', 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Mã OTP không chính xác';
+      setErrors((prev) => ({ ...prev, otp: message }));
+      toast.show(message, 'error');
+    } finally {
+      setVerifying(false);
     }
-    setErrors((prev) => ({ ...prev, otp: null }));
-    setVerified(true);
-    toast.show('Xác thực thành công', 'success');
   };
 
   const submit = () => {
@@ -142,6 +147,7 @@ export default function RegisterScreen() {
           error={errors.email}
           onChangeText={(value) => {
             setEmail(value);
+            setOtpSent(false);
             setVerified(false);
             if (errors.email) clearError('email');
           }}
@@ -169,6 +175,7 @@ export default function RegisterScreen() {
           error={errors.otp}
           onChangeText={(value) => {
             setOtp(value.replace(/[^0-9]/g, ''));
+            setVerified(false);
             if (errors.otp) clearError('otp');
           }}
         />
@@ -178,6 +185,7 @@ export default function RegisterScreen() {
           variant={verified ? 'primary' : 'secondary'}
           fullWidth={false}
           disabled={verified}
+          loading={verifying}
           onPress={verifyOtp}
           style={styles.otpButton}
         />

@@ -33,13 +33,6 @@ export const formatDateTime = (value?: string | null): string => {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-export const formatTime = (value?: string | null): string => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
 export const formatTimeAmPm = (value?: string | null): string => {
   if (!value) return '';
   const date = new Date(value);
@@ -63,21 +56,6 @@ export const addHours = (value: string, hours: number): string => {
   if (Number.isNaN(date.getTime())) return value;
   date.setHours(date.getHours() + hours);
   return date.toISOString();
-};
-
-export const formatHour = (hour: number): string => `${pad(hour)}:00`;
-
-export const formatDayOfWeek = (day: number): string => {
-  const days = [
-    'Chủ nhật',
-    'Thứ hai',
-    'Thứ ba',
-    'Thứ tư',
-    'Thứ năm',
-    'Thứ sáu',
-    'Thứ bảy',
-  ];
-  return days[day] ?? '';
 };
 
 export const secondsBetween = (from: string, to: string): number => {

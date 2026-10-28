@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, radius, spacing } from '@/theme';
 
-export interface SelectOption {
+interface SelectOption {
   label: string;
   value: string;
 }

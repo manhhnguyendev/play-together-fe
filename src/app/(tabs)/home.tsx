@@ -19,7 +19,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
 import { colors, fonts, spacing } from '@/theme';
 
-const RECOMMEND_SCORE_THRESHOLD = 3.5;
+const MIN_RECOMMEND_SCORE = 0;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -54,26 +54,10 @@ export default function HomeScreen() {
     enabled: canRecommend,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const results = await recommendService.predict(
-        topPlayerIds.map((playerId) => ({
-          userId: user!.id,
-          playerId,
-        })),
-      );
-      const accepted = results.filter(
-        (item) => Number(item.score) > RECOMMEND_SCORE_THRESHOLD,
-      );
-      const previews = await Promise.all(
-        accepted.map((item) =>
-          userService
-            .getPlayerPreviewById(item.playerId)
-            .then((response) => response.content)
-            .catch(() => null),
-        ),
-      );
-      return previews.filter(
-        (player): player is GetAllUserModel => player !== null,
-      );
+      const results = await recommendService.predict(topPlayerIds.length);
+      return results
+        .filter((item) => Number(item.score) > MIN_RECOMMEND_SCORE)
+        .map((item) => item.player);
     },
   });
 

@@ -31,13 +31,6 @@ export const groupByDay = (
   return result;
 };
 
-export const parseTimeInput = (value: string, max: number): number | null => {
-  const digits = value.replace(/[^0-9]/g, '');
-  if (!digits) return 0;
-  const number = Number(digits);
-  return number < 0 || number > max ? null : number;
-};
-
 export const isValidTimeRange = (
   fromHour: number,
   fromMinute: number,

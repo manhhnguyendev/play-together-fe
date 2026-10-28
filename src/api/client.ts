@@ -173,12 +173,6 @@ export const apiPost = <T>(
   config?: AxiosRequestConfig,
 ) => unwrap<T>(http.post<T>(url, data, config));
 
-export const apiPut = <T>(
-  url: string,
-  data?: unknown,
-  config?: AxiosRequestConfig,
-) => unwrap<T>(http.put<T>(url, data, config));
-
 export const apiPatch = <T>(
   url: string,
   data?: unknown,
@@ -190,9 +184,6 @@ export const apiDelete = <T>(
   data?: unknown,
   config?: AxiosRequestConfig,
 ) => unwrap<T>(http.delete<T>(url, { ...config, data }));
-
-export const isSuccessStatus = (status: number, accepted: number[]) =>
-  accepted.includes(status);
 
 export const buildQuery = (
   params: Record<string, string | number | boolean | undefined | null>,

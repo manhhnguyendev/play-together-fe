@@ -22,11 +22,6 @@ export const validateEmail = (value: string): string | null => {
   return null;
 };
 
-export const validatePassword = (value: string): string | null => {
-  if (!value) return messages.passNull;
-  return null;
-};
-
 export const validateStrongPassword = (value: string): string | null => {
   if (!value) return messages.passNull;
   if (!PASSWORD_REGEX.test(value)) return messages.invalidPass;

@@ -111,11 +111,6 @@ export const userService = {
       toLegacyPlayer(await apiGet<UserProfile>(`${API_URL.users}/${userId}`)),
     ),
 
-  getPlayerPreviewById: async (userId: string) =>
-    legacyResponse(
-      toLegacyUserSummary(await apiGet<UserSummary>(`${API_URL.users}/${userId}`)),
-    ),
-
   getUserService: async (userId: string) =>
     legacyResponse(
       toLegacyUserService(await apiGet<UserProfile>(`${API_URL.users}/${userId}`)),

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -74,28 +74,55 @@ export default function SearchScreen() {
     enabled: keyword.trim().length > 0,
     queryFn: async () => {
       if (filters.applied) {
-        return searchService.searchUserByFilter(keyword.trim(), {
-          isMale: filters.isMale,
-          isFemale: filters.isFemale,
-          gameId: filters.gameIds.join(' '),
-          initial: filters.initial,
-          status: STATUS_BY_ORDER[filters.statusOrder] ?? '',
-          sortByAlphabet: filters.sortOrder === 4,
-          sortByRating: filters.sortOrder === 2,
-          sortByHobby: filters.sortOrder === 1,
-          sortByPrice: filters.sortOrder === 3,
-          startPrice: filters.startPrice,
-          endPrice: filters.endPrice,
-        });
+        return searchService.searchUserByFilter(
+          keyword.trim(),
+          {
+            isMale: filters.isMale,
+            isFemale: filters.isFemale,
+            gameId: filters.gameIds.join(' '),
+            initial: filters.initial,
+            status: STATUS_BY_ORDER[filters.statusOrder] ?? '',
+            sortByAlphabet: filters.sortOrder === 4,
+            sortByRating: filters.sortOrder === 2,
+            sortByHobby: filters.sortOrder === 1,
+            sortByPrice: filters.sortOrder === 3,
+            startPrice: filters.startPrice,
+            endPrice: filters.endPrice,
+          },
+          pageSize,
+        );
       }
       return searchService.searchUser(keyword.trim(), pageSize);
     },
   });
 
+  const queryClient = useQueryClient();
+  const { mutate: recordSearch } = useMutation({
+    mutationFn: searchService.recordSearch,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.searchHistory }),
+  });
+  const lastRecorded = useRef('');
+
+  const record = useCallback(
+    (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed || lastRecorded.current === trimmed) return;
+      lastRecorded.current = trimmed;
+      recordSearch(trimmed);
+    },
+    [recordSearch],
+  );
+
+  useEffect(() => {
+    if (initialKeyword) record(initialKeyword);
+  }, [initialKeyword, record]);
+
   const submit = () => {
     const next = input.trim();
     setKeyword(next);
     setPageSize(INITIAL_PAGE_SIZE);
+    record(next);
   };
 
   const results = searchQuery.data?.content ?? [];

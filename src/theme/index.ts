@@ -1,4 +1,4 @@
-import { Platform, TextStyle, ViewStyle } from 'react-native';
+import { Platform, ViewStyle } from 'react-native';
 
 export const colors = {
   primary: '#8980FF',
@@ -47,56 +47,6 @@ export const fonts = {
   bold: 'Montserrat_700Bold',
 } as const;
 
-export const textStyles: Record<string, TextStyle> = {
-  h1: {
-    fontFamily: fonts.bold,
-    fontSize: 24,
-    color: colors.text,
-    lineHeight: 32,
-  },
-  h2: {
-    fontFamily: fonts.bold,
-    fontSize: 20,
-    color: colors.text,
-    lineHeight: 28,
-  },
-  h3: {
-    fontFamily: fonts.semibold,
-    fontSize: 17,
-    color: colors.text,
-    lineHeight: 24,
-  },
-  title: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-    color: colors.text,
-    lineHeight: 22,
-  },
-  body: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 21,
-  },
-  small: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  tiny: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.textFaint,
-    lineHeight: 16,
-  },
-  button: {
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    color: colors.white,
-  },
-};
-
 export const shadow = {
   card: Platform.select<ViewStyle>({
     ios: {
@@ -120,4 +70,3 @@ export const shadow = {
   }) as ViewStyle,
 };
 
-export const theme = { colors, spacing, radius, fonts, textStyles, shadow };

@@ -48,13 +48,6 @@ import type {
   UserSummary,
 } from '../v2/types';
 
-const recordSearch = (query: string) => {
-  if (!query) return;
-  void apiPost<void>(`${API_URL.searchHistory}`, { query }).catch(
-    () => undefined,
-  );
-};
-
 const TRANSACTION_FILTERS: Record<string, LedgerType> = {
   'Order|Add': 'ORDER_EARNING',
   'Order|Sub': 'ESCROW_HOLD',
@@ -170,10 +163,14 @@ export const reportService = {
 };
 
 export const searchService = {
-  searchUser: (search: string, pageSize: number) => {
-    recordSearch(search.trim());
-    return searchPlayers({ q: search, sort: 'ranking', pageSize });
+  recordSearch: async (search: string) => {
+    const query = search.trim();
+    if (!query) return;
+    await apiPost<void>(`${API_URL.searchHistory}`, { query });
   },
+
+  searchUser: (search: string, pageSize: number) =>
+    searchPlayers({ q: search, sort: 'ranking', pageSize }),
 
   searchUserByFilter: (
     search: string,
@@ -190,8 +187,8 @@ export const searchService = {
       startPrice: number;
       endPrice: number;
     },
+    pageSize: number,
   ) => {
-    recordSearch(search.trim());
     const gameId = filter.gameId.split(' ')[0];
     const genders: Gender[] | undefined =
       filter.isMale === filter.isFemale
@@ -214,7 +211,7 @@ export const searchService = {
           : filter.sortByPrice
             ? 'price_asc'
             : 'ranking',
-      pageSize: 20,
+      pageSize,
     });
   },
 };
@@ -278,10 +275,10 @@ export const feedbackService = {
 };
 
 export const recommendService = {
-  predict: async (body: { userId: string; playerId: string }[]) => {
+  predict: async (limit: number) => {
     const recommendations = await apiGet<RecommendationView[]>(
       `${API_URL.recommendations}/players${buildQuery({
-        limit: Math.min(Math.max(body.length, 1), 50),
+        limit: Math.min(Math.max(limit, 1), 50),
       })}`,
     );
     return recommendations.map<ResultRecommendModel>(toLegacyRecommendation);

@@ -67,9 +67,6 @@ export const orderHirerFinalPrice = (
   return ratio > 0 ? order.finalPrices / ratio : order.finalPrices;
 };
 
-export const orderStartedAt = (order: Pick<OrderModel, 'timeStart'>): boolean =>
-  !isEmptyDate(order.timeStart);
-
 export const orderExpectedEnd = (
   order: Pick<OrderModel, 'timeStart' | 'timeFinish' | 'totalTimes'>,
 ): string =>

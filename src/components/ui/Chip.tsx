@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 interface ChipProps {
@@ -34,10 +34,6 @@ export function Chip({ label, selected = false, onPress, icon }: ChipProps) {
   );
 }
 
-export function ChipRow({ children }: { children: React.ReactNode }) {
-  return <View style={styles.row}>{children}</View>;
-}
-
 const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
@@ -60,9 +56,4 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   selectedLabel: { color: colors.white },
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
 });

@@ -456,8 +456,8 @@ export const toLegacySearchHistory = (
 export const toLegacyRecommendation = (
   recommendation: RecommendationView,
 ): ResultRecommendModel => ({
-  playerId: recommendation.user.id,
   score: String(recommendation.score),
+  player: toLegacyUserSummary(recommendation.user),
 });
 
 export const toLegacyMomo = (deposit: {

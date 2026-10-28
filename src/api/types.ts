@@ -16,12 +16,6 @@ export interface ApiListResponse<T> {
   responseTime: string;
 }
 
-export interface TokenModel {
-  message: string;
-  success: boolean;
-  expireDate: string;
-}
-
 export interface LoginModel {
   email: string;
   password: string;
@@ -62,16 +56,6 @@ export interface ChangePasswordModel {
   currentPassword: string;
   newPassword: string;
   confirmNewPassword: string;
-}
-
-export interface EmailModel {
-  email: string;
-}
-
-export interface SendEmailModel {
-  toEmail: string;
-  subject: string;
-  body: string;
 }
 
 export interface ImageModel {
@@ -138,15 +122,6 @@ export interface GetAllUserModel {
   createdDate: string;
 }
 
-export interface UserUpdateModel {
-  name: string;
-  dateOfBirth: string;
-  city: string;
-  gender: boolean;
-  avatar: string;
-  description: string;
-}
-
 export interface UserServiceModel {
   isPlayer: boolean;
   pricePerHour: number;
@@ -194,13 +169,6 @@ export interface DepositModel {
 export interface WithdrawModel {
   moneyWithdraw: number;
   phoneNumberMomo: string;
-}
-
-export interface StatisticModel {
-  item1: number;
-  item2: number;
-  item3: number;
-  item4: number;
 }
 
 export interface GameModel {
@@ -375,12 +343,6 @@ export interface ReportCommentModel {
   reason: string;
 }
 
-export interface ReportModel {
-  id: string;
-  reportMessage: string;
-  createdDate: string;
-}
-
 export interface ReportCreateModel {
   reportMessage: string;
 }
@@ -474,12 +436,7 @@ export interface MomoCreateModel {
   amount: number;
 }
 
-export interface RecommendModel {
-  userId: string;
-  playerId: string;
-}
-
 export interface ResultRecommendModel {
-  playerId: string;
   score: string;
+  player: GetAllUserModel;
 }

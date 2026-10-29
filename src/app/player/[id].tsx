@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { datingService } from '@/api/services/catalog';
-import { userService } from '@/api/services/users';
+import { blockService, userService } from '@/api/services/users';
 import type { OnlineHourModel } from '@/api/types';
 import { StatusText } from '@/components/players/StatusText';
 import {
@@ -48,7 +48,24 @@ export default function PlayerProfileScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const playerId = typeof params.id === 'string' ? params.id : '';
   const currentUser = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
   const [activeImage, setActiveImage] = useState<string | null>(null);
+
+  const toggleBlock = useMutation({
+    mutationFn: (blocked: boolean) =>
+      blocked ? blockService.unblock(playerId) : blockService.block(playerId),
+    onSuccess: async (_result, blocked) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.player(playerId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.blockedUsers }),
+      ]);
+      toast.show(
+        blocked ? 'Đã bỏ chặn người dùng' : 'Đã chặn người dùng',
+        'success',
+      );
+    },
+    onError: () => toast.show('Không thể cập nhật danh sách chặn', 'error'),
+  });
 
   const playerQuery = useQuery({
     queryKey: queryKeys.player(playerId),
@@ -98,6 +115,10 @@ export default function PlayerProfileScreen() {
     if (!currentUser) return;
     if (player.id === currentUser.id) {
       toast.show('Bạn không thể thuê chính mình!', 'error');
+      return;
+    }
+    if (player.isBlockedByMe) {
+      toast.show('Bạn đã chặn người này, hãy bỏ chặn để thuê', 'error');
       return;
     }
     if (currentUser.isPlayer) {
@@ -200,6 +221,31 @@ export default function PlayerProfileScreen() {
             />
           </View>
         </Pressable>
+
+        {currentUser && player.id !== currentUser.id ? (
+          <Pressable
+            disabled={toggleBlock.isPending}
+            onPress={() => toggleBlock.mutate(player.isBlockedByMe)}
+            style={({ pressed }) => [styles.blockRow, pressed && styles.pressed]}
+          >
+            <View style={styles.blockLabel}>
+              <Ionicons
+                name={player.isBlockedByMe ? 'checkmark-circle-outline' : 'ban-outline'}
+                size={18}
+                color={player.isBlockedByMe ? colors.primary : colors.danger}
+              />
+              <Text
+                style={[
+                  styles.blockText,
+                  !player.isBlockedByMe && styles.blockTextDanger,
+                ]}
+              >
+                {player.isBlockedByMe ? 'Bỏ chặn người dùng' : 'Chặn người dùng'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.grey} />
+          </Pressable>
+        ) : null}
 
         <Section title="Thông tin" icon="person-outline">
           <Text style={styles.description}>
@@ -417,6 +463,27 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
   },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  blockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  blockLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  blockText: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    color: colors.text,
+  },
+  blockTextDanger: { color: colors.danger },
+  pressed: { opacity: 0.65 },
   detailText: {
     fontFamily: fonts.medium,
     fontSize: 12,

@@ -221,6 +221,8 @@ export const toLegacyPlayer = (profile: UserProfile): PlayerModel => ({
   isActive: profile.isActive,
   pricePerHour: profile.pricePerHour,
   maxHourHire: profile.maxHoursPerHire,
+  isBlockedByMe: profile.isBlockedByMe,
+  canHire: profile.canHire,
 });
 
 export const toLegacyUserService = (profile: UserProfile): UserServiceModel => ({
@@ -362,6 +364,7 @@ export const toLegacyNotification = (
 ): NotificationModel => ({
   id: notification.id,
   title: notification.title,
+  body: notification.body,
   createdDate: notification.createdAt,
   status: notification.status,
 });
@@ -464,6 +467,7 @@ export const toLegacyMomo = (deposit: {
   id: string;
   amount: number;
   paymentUrl: string;
+  mock: boolean;
 }): MomoModel => ({
   partnerCode: 'MOMO',
   orderId: deposit.id,
@@ -473,6 +477,7 @@ export const toLegacyMomo = (deposit: {
   message: '',
   resultCode: 0,
   payUrl: deposit.paymentUrl,
+  mock: deposit.mock,
 });
 
 export const toLegacyUnActiveBalance = (

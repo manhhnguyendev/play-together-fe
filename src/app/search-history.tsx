@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -15,17 +15,37 @@ import { gameService } from '@/api/services/catalog';
 import {
   searchHistoryService,
 } from '@/api/services/content';
-import { ErrorView, Skeleton } from '@/components/ui';
+import { ErrorView, Skeleton, useToast } from '@/components/ui';
 import { queryKeys } from '@/lib/queryKeys';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function SearchHistoryScreen() {
   const router = useRouter();
+  const toast = useToast();
+  const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState('');
 
   const recentQuery = useQuery({
     queryKey: queryKeys.searchHistory,
     queryFn: async () => (await searchHistoryService.getAll()).content,
+  });
+
+  const invalidateHistory = () =>
+    queryClient.invalidateQueries({ queryKey: queryKeys.searchHistory });
+
+  const removeOne = useMutation({
+    mutationFn: (id: string) => searchHistoryService.remove(id),
+    onSuccess: invalidateHistory,
+    onError: () => toast.show('Không thể xoá tìm kiếm', 'error'),
+  });
+
+  const clearAll = useMutation({
+    mutationFn: () => searchHistoryService.clear(),
+    onSuccess: async () => {
+      await invalidateHistory();
+      toast.show('Đã xoá lịch sử tìm kiếm', 'success');
+    },
+    onError: () => toast.show('Không thể xoá lịch sử tìm kiếm', 'error'),
   });
 
   const hotQuery = useQuery({
@@ -89,8 +109,17 @@ export default function SearchHistoryScreen() {
           loading={recentQuery.isLoading}
           error={recentQuery.isError}
           onRetry={() => recentQuery.refetch()}
-          values={(recentQuery.data ?? []).map((item) => item.searchString)}
+          items={(recentQuery.data ?? []).map((item) => ({
+            id: item.id,
+            value: item.searchString,
+          }))}
           onPressValue={openSearch}
+          onRemove={
+            clearAll.isPending ? undefined : (id) => removeOne.mutate(id)
+          }
+          onClear={
+            clearAll.isPending ? undefined : () => clearAll.mutate()
+          }
           emptyLabel="Chưa có tìm kiếm nào"
         />
 
@@ -99,7 +128,10 @@ export default function SearchHistoryScreen() {
           loading={hotQuery.isLoading}
           error={hotQuery.isError}
           onRetry={() => hotQuery.refetch()}
-          values={(hotQuery.data ?? []).map((item) => item.searchString)}
+          items={(hotQuery.data ?? []).map((item) => ({
+            id: item.id,
+            value: item.searchString,
+          }))}
           onPressValue={openSearch}
           emptyLabel="Chưa có dữ liệu"
         />
@@ -149,24 +181,39 @@ export default function SearchHistoryScreen() {
 
 function SearchSection({
   title,
-  values,
+  items,
   loading,
   error,
   onRetry,
   onPressValue,
+  onRemove,
+  onClear,
   emptyLabel,
 }: {
   title: string;
-  values: string[];
+  items: { id: string; value: string }[];
   loading: boolean;
   error: boolean;
   onRetry: () => void;
   onPressValue: (value: string) => void;
+  onRemove?: (id: string) => void;
+  onClear?: () => void;
   emptyLabel: string;
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {onClear && items.length > 0 ? (
+          <Pressable
+            hitSlop={8}
+            onPress={onClear}
+            style={({ pressed }) => [pressed && styles.pressed]}
+          >
+            <Text style={styles.clearText}>Xoá tất cả</Text>
+          </Pressable>
+        ) : null}
+      </View>
       {loading ? (
         <View style={styles.loadingRows}>
           <Skeleton width="60%" height={16} />
@@ -174,24 +221,34 @@ function SearchSection({
         </View>
       ) : error ? (
         <ErrorView onRetry={onRetry} />
-      ) : values.length === 0 ? (
+      ) : items.length === 0 ? (
         <Text style={styles.empty}>{emptyLabel}</Text>
       ) : (
-        values.map((value) => (
-          <Pressable
-            key={value}
-            onPress={() => onPressValue(value)}
-            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-          >
-            <Ionicons
-              name="time-outline"
-              size={16}
-              color={colors.textFaint}
-            />
-            <Text style={styles.rowText} numberOfLines={1}>
-              {value}
-            </Text>
-          </Pressable>
+        items.map((item) => (
+          <View key={item.id} style={styles.row}>
+            <Pressable
+              onPress={() => onPressValue(item.value)}
+              style={({ pressed }) => [styles.rowMain, pressed && styles.pressed]}
+            >
+              <Ionicons
+                name="time-outline"
+                size={16}
+                color={colors.textFaint}
+              />
+              <Text style={styles.rowText} numberOfLines={1}>
+                {item.value}
+              </Text>
+            </Pressable>
+            {onRemove ? (
+              <Pressable
+                hitSlop={10}
+                onPress={() => onRemove(item.id)}
+                style={({ pressed }) => [pressed && styles.pressed]}
+              >
+                <Ionicons name="close" size={16} color={colors.textFaint} />
+              </Pressable>
+            ) : null}
+          </View>
         ))
       )}
     </View>
@@ -240,20 +297,36 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   section: { gap: spacing.xs },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   sectionTitle: {
     fontFamily: fonts.semibold,
     fontSize: 15,
     color: colors.text,
   },
+  clearText: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: colors.primary,
+  },
   loadingRows: { gap: spacing.sm, paddingVertical: spacing.xs },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
     paddingVertical: 10,
     paddingHorizontal: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+  },
+  rowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   rowText: {
     flex: 1,

@@ -2,6 +2,7 @@ import {
   ApiError,
   apiDelete,
   apiGet,
+  apiPatch,
   apiPost,
   buildQuery,
 } from '../client';
@@ -42,6 +43,7 @@ import type {
   NotificationView,
   Paginated,
   PlayerSearchQuery,
+  RatingSummary,
   RatingView,
   RecommendationView,
   SearchHistoryItem,
@@ -114,6 +116,29 @@ export const notificationService = {
     }
     return legacyResponse(toLegacyNotification(notification));
   },
+
+  getUnreadCount: async () => {
+    const result = await apiGet<{ unread: number }>(
+      `${API_URL.notifications}/unread-count`,
+    );
+    return result.unread;
+  },
+
+  markRead: async (id: string) => {
+    await apiPatch<void>(`${API_URL.notifications}/${id}/read`);
+  },
+
+  markAllRead: async () => {
+    await apiPost<void>(`${API_URL.notifications}/read-all`);
+  },
+
+  remove: async (id: string) => {
+    await apiDelete<void>(`${API_URL.notifications}/${id}`);
+  },
+
+  removeRead: async () => {
+    await apiDelete<void>(`${API_URL.notifications}/read`);
+  },
 };
 
 export const chatService = {
@@ -152,6 +177,9 @@ export const ratingService = {
       ),
       toLegacyRating,
     ),
+
+  getSummary: (userId: string) =>
+    apiGet<RatingSummary>(`${API_URL.users}/${userId}/ratings/summary`),
 };
 
 export const reportService = {
@@ -233,6 +261,14 @@ export const searchHistoryService = {
       id: item.query,
       searchString: item.query,
     }));
+  },
+
+  remove: async (id: string) => {
+    await apiDelete<void>(`${API_URL.searchHistory}/${id}`);
+  },
+
+  clear: async () => {
+    await apiDelete<void>(API_URL.searchHistory);
   },
 };
 

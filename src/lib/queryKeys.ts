@@ -19,8 +19,11 @@ export const queryKeys = {
   datings: (id: string) => ['users', id, 'datings'] as const,
   ratings: (userId: string, vote: number, pageSize: number) =>
     ['users', userId, 'ratings', vote, pageSize] as const,
+  ratingSummary: (userId: string) =>
+    ['users', userId, 'ratings', 'summary'] as const,
   order: (id: string) => ['order', id] as const,
   orderDetail: (id: string) => ['order', id, 'detail'] as const,
+  orderHistory: (id: string) => ['order', id, 'history'] as const,
   history: {
     created: (pageSize: number) => ['orders', 'created', pageSize] as const,
     received: (pageSize: number) => ['orders', 'received', pageSize] as const,
@@ -40,6 +43,11 @@ export const queryKeys = {
     ['charities', search, pageSize] as const,
   charity: (id: string) => ['charities', id] as const,
   notifications: (pageSize: number) => ['notifications', pageSize] as const,
+  notificationsUnread: ['notifications', 'unread'] as const,
+  blockedUsers: ['users', 'blocks'] as const,
+  behavior: ['users', 'behavior'] as const,
+  behaviorHistory: (pageSize: number) =>
+    ['users', 'behavior', 'history', pageSize] as const,
   feedbacks: ['feedbacks'] as const,
   feedbackDetail: (id: string) => ['feedbacks', id] as const,
 };

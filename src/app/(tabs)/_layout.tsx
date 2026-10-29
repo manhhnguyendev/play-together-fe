@@ -1,9 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
+import { useUnreadNotificationCount } from '@/features/notifications/useUnreadNotificationCount';
 import { colors, fonts } from '@/theme';
 
 export default function TabsLayout() {
+  const unreadQuery = useUnreadNotificationCount();
+  const unread = unreadQuery.data ?? 0;
+
   return (
     <Tabs
       screenOptions={{
@@ -66,6 +70,8 @@ export default function TabsLayout() {
         name="notifications"
         options={{
           title: 'Thông báo',
+          tabBarBadge: unread > 0 ? unread : undefined,
+          tabBarBadgeStyle: { fontSize: 9 },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'notifications' : 'notifications-outline'}

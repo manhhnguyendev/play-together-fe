@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost, buildQuery } from '../client';
+import { apiDelete, apiGet, apiPatch, apiPost, buildQuery } from '../client';
 import { API_URL } from '../endpoints';
 import type {
   DepositModel,
@@ -22,6 +22,8 @@ import {
   toLegacyUserSummary,
 } from '../v2/mappers';
 import type {
+  BehaviorHistoryItem,
+  BlockedUserView,
   EarningsSummary,
   OrderView,
   Paginated,
@@ -198,12 +200,44 @@ export const userService = {
       id: string;
       amount: number;
       paymentUrl: string;
+      mock: boolean;
     }>(`${API_URL.wallet}/deposits`, { amount: body.amount });
     return legacyResponse(toLegacyMomo(deposit));
+  },
+
+  confirmDeposit: async (depositId: string) => {
+    const result = await apiPost<{ id: string; status: string }>(
+      `${API_URL.wallet}/deposits/${depositId}/confirm`,
+    );
+    return result.status;
   },
 
   getUnActiveBalances: async () => {
     const wallet = await apiGet<WalletSummary>(API_URL.wallet);
     return legacyArray(wallet.pendingCredits, toLegacyUnActiveBalance);
   },
+};
+
+export const blockService = {
+  getAll: () => apiGet<BlockedUserView[]>(`${API_URL.users}/me/blocks`),
+
+  block: async (userId: string) => {
+    await apiPost<void>(`${API_URL.users}/me/blocks`, { blockedUserId: userId });
+  },
+
+  unblock: async (userId: string) => {
+    await apiDelete<void>(`${API_URL.users}/me/blocks/${userId}`);
+  },
+};
+
+export const behaviorService = {
+  getMine: () =>
+    apiGet<{ points: number; satisfaction: number }>(
+      `${API_URL.users}/me/behavior`,
+    ),
+
+  getHistory: (pageSize: number) =>
+    apiGet<Paginated<BehaviorHistoryItem>>(
+      `${API_URL.users}/me/behavior/history${buildQuery({ pageSize })}`,
+    ),
 };

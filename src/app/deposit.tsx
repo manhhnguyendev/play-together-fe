@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -13,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { userService } from '@/api/services/users';
 import { AppBar, Button, TextField, useToast } from '@/components/ui';
 import { formatNumber, parseAmount } from '@/lib/format';
+import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
 import { colors, fonts, spacing } from '@/theme';
 
@@ -22,7 +24,9 @@ const MAX_DEPOSIT = 50000000;
 export default function DepositScreen() {
   const router = useRouter();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
+  const refreshUser = useAuthStore((state) => state.refreshUser);
   const [moneyText, setMoneyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,7 +58,19 @@ export default function DepositScreen() {
         toast.show('Không thể tạo liên kết thanh toán', 'error');
         return;
       }
-      await Linking.openURL(payUrl);
+      if (result.content?.mock) {
+        await userService.confirmDeposit(result.content.orderId);
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.userBalance(user.id),
+          }),
+          refreshUser(),
+        ]);
+        toast.show('Nạp tiền thành công (thanh toán thử nghiệm)', 'success');
+      } else {
+        await Linking.openURL(payUrl);
+        toast.show('Đã mở cổng thanh toán MOMO', 'success');
+      }
       router.dismissTo('/(tabs)/personal');
     } catch {
       toast.show('Không thể mở cổng thanh toán MOMO', 'error');

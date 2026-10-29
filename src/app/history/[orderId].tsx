@@ -32,6 +32,12 @@ export default function HistoryDetailScreen() {
     queryFn: async () => (await orderService.getDetailById(orderId)).content,
   });
 
+  const historyQuery = useQuery({
+    queryKey: queryKeys.orderHistory(orderId),
+    enabled: Boolean(orderId),
+    queryFn: () => orderService.getHistory(orderId),
+  });
+
   if (!orderId || detailQuery.isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -140,6 +146,40 @@ export default function HistoryDetailScreen() {
           </View>
         ) : null}
 
+        {historyQuery.data && historyQuery.data.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tiến trình:</Text>
+            {historyQuery.data.map((entry, index) => (
+              <View key={entry.id} style={styles.timelineRow}>
+                <View style={styles.timelineMarker}>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      {
+                        backgroundColor: orderStatusColor(entry.toStatus),
+                      },
+                    ]}
+                  />
+                  {index < (historyQuery.data?.length ?? 0) - 1 ? (
+                    <View style={styles.timelineLine} />
+                  ) : null}
+                </View>
+                <View style={styles.timelineBody}>
+                  <Text style={styles.timelineTitle}>
+                    {orderStatusLabel(entry.toStatus)}
+                  </Text>
+                  <Text style={styles.timelineTime}>
+                    {formatDateTimeAmPm(entry.createdAt)}
+                  </Text>
+                  {entry.reason ? (
+                    <Text style={styles.timelineReason}>{entry.reason}</Text>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         {rating ? (
           <View style={styles.section}>
             <View style={styles.ratingRow}>
@@ -227,8 +267,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.text,
   },
-  ratingRow: { flexDirection: 'row', alignItems: 'center' },
-  ratingValue: {
+  ratingRow: { flexDirection: 'row', alignItems: 'center' },  ratingValue: {
     fontFamily: fonts.semibold,
     fontSize: 15,
     color: colors.warning,
@@ -245,5 +284,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: colors.text,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  timelineMarker: {
+    alignItems: 'center',
+    width: 12,
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 4,
+  },
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    marginTop: 4,
+    backgroundColor: colors.border,
+  },
+  timelineBody: {
+    flex: 1,
+    paddingBottom: spacing.md,
+    gap: 2,
+  },
+  timelineTitle: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    color: colors.text,
+  },
+  timelineTime: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  timelineReason: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.textMuted,
   },
 });

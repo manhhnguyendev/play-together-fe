@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { ratingService } from '@/api/services/content';
 import type { RatingModel } from '@/api/types';
+import type { RatingSummary } from '@/api/v2/types';
 import {
   AppBar,
   Button,
@@ -50,6 +51,12 @@ export default function RatingsScreen() {
     queryFn: async () => ratingService.getAll(userId, vote, pageSize),
   });
 
+  const summaryQuery = useQuery({
+    queryKey: queryKeys.ratingSummary(userId),
+    enabled: Boolean(userId),
+    queryFn: () => ratingService.getSummary(userId),
+  });
+
   const ratings = ratingsQuery.data?.content ?? [];
   const hasNext = ratingsQuery.data?.hasNext ?? false;
 
@@ -61,6 +68,10 @@ export default function RatingsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Chi tiết đánh giá" />
+
+      {summaryQuery.data && summaryQuery.data.count > 0 ? (
+        <RatingSummaryCard summary={summaryQuery.data} />
+      ) : null}
 
       <View style={styles.filterWrap}>
         <ScrollView
@@ -124,6 +135,43 @@ export default function RatingsScreen() {
   );
 }
 
+function RatingSummaryCard({ summary }: { summary: RatingSummary }) {
+  const max = Math.max(...Object.values(summary.distribution), 1);
+
+  return (
+    <View style={styles.summary}>
+      <View style={styles.summaryScore}>
+        <Text style={styles.summaryAverage}>{summary.average.toFixed(1)}</Text>
+        <RatingStars value={Math.round(summary.average)} size={14} />
+        <Text style={styles.summaryCount}>{summary.count} đánh giá</Text>
+      </View>
+      <View style={styles.summaryBars}>
+        {([5, 4, 3, 2, 1] as const).map((star) => {
+          const count =
+            summary.distribution[
+              String(star) as keyof RatingSummary['distribution']
+            ];
+          return (
+            <View key={star} style={styles.summaryBarRow}>
+              <Text style={styles.summaryBarLabel}>{star}</Text>
+              <Ionicons name="star" size={11} color={colors.gold} />
+              <View style={styles.summaryBarTrack}>
+                <View
+                  style={[
+                    styles.summaryBarFill,
+                    { width: `${Math.round((count / max) * 100)}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.summaryBarCount}>{count}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function RatingCard({
   rating,
   canReport,
@@ -174,6 +222,57 @@ function RatingCard({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
+  summary: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  summaryScore: { alignItems: 'center', gap: 4, width: 96 },
+  summaryAverage: {
+    fontFamily: fonts.bold,
+    fontSize: 30,
+    color: colors.text,
+  },
+  summaryCount: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  summaryBars: { flex: 1, gap: 3, justifyContent: 'center' },
+  summaryBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  summaryBarLabel: {
+    width: 10,
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'right',
+  },
+  summaryBarTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  summaryBarFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: colors.gold,
+  },
+  summaryBarCount: {
+    width: 24,
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'right',
+  },
   filterWrap: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,

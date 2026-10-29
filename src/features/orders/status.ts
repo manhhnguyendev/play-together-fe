@@ -1,4 +1,6 @@
 import type { OrderModel } from '@/api/types';
+import { toLegacyOrderStatus } from '@/api/v2/mappers';
+import type { OrderStatus } from '@/api/v2/types';
 import { addHours, isEmptyDate } from '@/lib/format';
 import { colors } from '@/theme';
 
@@ -28,9 +30,12 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
   Interrupt: colors.grey,
 };
 
+const normalizeStatus = (status: string): string =>
+  toLegacyOrderStatus(status as OrderStatus);
+
 export const orderStatusLabel = (status?: string | null): string => {
   if (!status) return '';
-  return ORDER_STATUS_LABELS[status] ?? status;
+  return ORDER_STATUS_LABELS[normalizeStatus(status)] ?? status;
 };
 
 export const endOrderStatusLabel = (status?: string | null): string => {
@@ -40,7 +45,7 @@ export const endOrderStatusLabel = (status?: string | null): string => {
 
 export const orderStatusColor = (status?: string | null): string => {
   if (!status) return colors.text;
-  return ORDER_STATUS_COLORS[status] ?? colors.text;
+  return ORDER_STATUS_COLORS[normalizeStatus(status)] ?? colors.text;
 };
 
 const CLOSED_STATUSES = ['Cancel', 'Reject', 'OverTime'];

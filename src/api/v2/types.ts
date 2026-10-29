@@ -291,6 +291,13 @@ export interface RecommendationView {
   reason: string;
 }
 
+export interface RatingSummary {
+  userId: string;
+  average: number;
+  count: number;
+  distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
+}
+
 export interface RatingAuthor {
   id: string;
   name: string;
@@ -362,6 +369,41 @@ export interface MostFavoritedGame {
   name: string;
   displayName: string | null;
   favoriteCount: number;
+}
+
+export interface BlockedUserView {
+  id: string;
+  user: UserSummary;
+  expiresAt: string | null;
+}
+
+export type BehaviorEvent =
+  | 'RATING_RECEIVED'
+  | 'RATING_REVOKED'
+  | 'ORDER_REJECTED'
+  | 'ORDER_EXPIRED'
+  | 'ORDER_EARLY_END'
+  | 'REPORT_APPROVED'
+  | 'MANUAL_ADJUSTMENT';
+
+export interface BehaviorHistoryItem {
+  id: string;
+  event: BehaviorEvent;
+  operation: 'ADD' | 'SUB';
+  pointType: 'POINTS' | 'SATISFACTION';
+  amount: number;
+  referenceId: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface OrderHistoryItem {
+  id: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  reason: string | null;
+  actorId: string | null;
+  createdAt: string;
 }
 
 export interface EarningsSummary {

@@ -1,4 +1,4 @@
-import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from '../client';
+import { apiDelete, apiGet, apiPatch, apiPost } from '../client';
 import { API_URL } from '../endpoints';
 import type {
   CreateGameOfUserModel,
@@ -146,19 +146,13 @@ export const datingService = {
   },
 
   update: async (datingId: string, body: UpdateOnlineHourModel) => {
-    const windows = await apiGet<AvailabilityWindow[]>(
-      `${API_URL.users}/me/availability`,
+    await apiPatch<AvailabilityWindow>(
+      `${API_URL.users}/me/availability/${datingId}`,
+      {
+        startMinute: body.fromHour,
+        endMinute: body.toHour,
+      },
     );
-    const current = windows.find((window) => window.id === datingId);
-    if (!current) {
-      throw new ApiError('Khung giờ không còn tồn tại', 404);
-    }
-    await apiDelete<void>(`${API_URL.users}/me/availability/${datingId}`);
-    await apiPost<void>(`${API_URL.users}/me/availability`, {
-      dayOfWeek: current.dayOfWeek,
-      startMinute: body.fromHour,
-      endMinute: body.toHour,
-    });
   },
 
   remove: async (id: string) => {

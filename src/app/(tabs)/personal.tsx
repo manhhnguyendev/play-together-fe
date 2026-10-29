@@ -23,6 +23,8 @@ const MENU_ITEMS = [
   { label: 'Quản lý nhận thuê', href: '/manage-hiring', icon: 'briefcase-outline' },
   { label: 'Cài đặt sở thích', href: '/update-hobbies', icon: 'game-controller-outline' },
   { label: 'Game yêu thích', href: '/favorite-games', icon: 'heart-outline' },
+  { label: 'Điểm hành vi', href: '/behavior-history', icon: 'analytics-outline' },
+  { label: 'Người dùng đã chặn', href: '/blocked-users', icon: 'ban-outline' },
   { label: 'Thay đổi mật khẩu', href: '/personal-change-password', icon: 'lock-closed-outline' },
   { label: 'Thống kê', href: '/statistics', icon: 'stats-chart-outline' },
   { label: 'Chính sách', href: '/policies', icon: 'document-text-outline' },

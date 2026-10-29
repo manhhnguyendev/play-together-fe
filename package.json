@@ -1,5 +1,5 @@
 {
-  "name": "play-together-rn",
+  "name": "play-together-fe",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
@@ -46,5 +46,9 @@
     "lint": "expo lint",
     "api:generate": "orval --config orval.config.ts"
   },
-  "private": true
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
 }

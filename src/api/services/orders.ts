@@ -17,6 +17,7 @@ import {
   toWireOrderStatus,
 } from '../v2/mappers';
 import type {
+  OrderHistoryItem,
   OrderView,
   Paginated,
   RatingView,
@@ -62,6 +63,9 @@ export const orderService = {
 
     return legacyResponse(detail);
   },
+
+  getHistory: async (orderId: string) =>
+    apiGet<OrderHistoryItem[]>(`${API_URL.orders}/${orderId}/history`),
 
   getRequestsOfPlayer: (status: string) =>
     fetchOrders(`${API_URL.orders}/requests${statusQuery(status)}`),

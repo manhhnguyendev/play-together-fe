@@ -145,6 +145,8 @@ export interface PlayerModel {
   isActive: boolean;
   pricePerHour: number;
   maxHourHire: number;
+  isBlockedByMe: boolean;
+  canHire: boolean;
 }
 
 export interface MakeDonateModel {
@@ -391,6 +393,7 @@ export interface TransactionModel {
 export interface NotificationModel {
   id: string;
   title: string;
+  body: string;
   createdDate: string;
   status: string;
 }
@@ -429,6 +432,7 @@ export interface MomoModel {
   message: string;
   resultCode: number;
   payUrl: string;
+  mock: boolean;
 }
 
 export interface MomoCreateModel {

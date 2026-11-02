@@ -128,8 +128,8 @@ export default function EndOrderScreen() {
       hitSlop={hitSlop.sm}
       onPress={() =>
         router.push({
-          pathname: '/report/[orderId]',
-          params: { orderId: order.id },
+          pathname: '/report/[target]',
+          params: { target: order.id, kind: 'order' },
         })
       }
       style={({ pressed }) => [styles.reportButton, pressed && styles.pressed]}
@@ -285,8 +285,8 @@ export default function EndOrderScreen() {
                     size="md"
                     onPress={() =>
                       router.push({
-                        pathname: '/report/[orderId]',
-                        params: { orderId: order.id },
+                        pathname: '/report/[target]',
+                        params: { target: order.id, kind: 'order' },
                       })
                     }
                   />

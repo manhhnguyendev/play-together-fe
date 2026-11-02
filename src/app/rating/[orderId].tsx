@@ -127,8 +127,8 @@ export default function RatingScreen() {
             hitSlop={hitSlop.sm}
             onPress={() =>
               router.push({
-                pathname: '/report/[orderId]',
-                params: { orderId: order.id },
+                pathname: '/report/[target]',
+                params: { target: order.id, kind: 'order' },
               })
             }
             style={({ pressed }) => [

@@ -93,12 +93,12 @@ src/app/
   player/[id]                  Public profile + availability
   player-list, filter, search
   send-hiring-request, hiring-negotiating/[orderId], hiring-stage/[orderId], receive-request/[orderId]
-  end-order/[orderId], end-order-early/[orderId], rating/[orderId], report/[orderId]
+  end-order/[orderId], end-order-early/[orderId], rating/[orderId], report/[target]?kind=order|rating
   chat/[orderId], history/[orderId]
   charity/[charityId], charity-donate/[charityId]
   deposit, withdraw, transactions, unactive-balance
   update-skills, hour-form, update-hours, update-hobbies, manage-hiring
-  favorite-games, ratings/[userId], feedback, feedback-create, report-comment
+  favorite-games, ratings/[userId], feedback, feedback-create
   statistics, policies, user-profile, personal-change-password
   behavior-history, blocked-users
 ```

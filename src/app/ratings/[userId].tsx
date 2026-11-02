@@ -117,8 +117,13 @@ export default function RatingsScreen() {
               canReport={canReport}
               onReport={() =>
                 router.push({
-                  pathname: '/report-comment',
-                  params: { rateId: item.id, name: item.user?.name ?? '' },
+                  pathname: '/report/[target]',
+                  params: {
+                    target: item.id,
+                    kind: 'rating',
+                    name: item.user?.name ?? '',
+                    avatar: item.user?.avatar ?? '',
+                  },
                 })
               }
             />

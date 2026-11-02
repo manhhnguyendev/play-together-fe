@@ -28,7 +28,7 @@ export function HomeAppBar() {
         <Pressable
           accessibilityRole="search"
           accessibilityLabel="Tìm game và người chơi"
-          onPress={() => router.push('/search-history')}
+          onPress={() => router.push('/search')}
           onPressIn={press.onPressIn}
           onPressOut={press.onPressOut}
           style={({ pressed }) => [styles.searchBox, pressed && styles.pressed]}

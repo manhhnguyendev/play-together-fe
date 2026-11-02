@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { searchService } from '@/api/services/content';
+import { SearchSuggestions } from '@/components/search/SearchSuggestions';
 import { PlayerRowCard } from '@/components/players/PlayerRowCard';
 import { Button, EmptyState, ErrorView, LoadingView } from '@/components/ui';
 import {
@@ -69,8 +70,6 @@ export default function SearchScreen() {
     });
 
   const setInput = (value: string) => setForm({ ...formState, input: value });
-  const setKeyword = (value: string) =>
-    setForm({ ...formState, keyword: value });
 
   const searchQuery = useQuery({
     queryKey: queryKeys.search(keyword, filters, pageSize),
@@ -121,11 +120,18 @@ export default function SearchScreen() {
     if (initialKeyword) record(initialKeyword);
   }, [initialKeyword, record]);
 
-  const submit = () => {
-    const next = input.trim();
-    setKeyword(next);
+  const applyKeyword = (value: string) => {
+    const next = value.trim();
+    setForm({ ...formState, input: next, keyword: next });
     setPageSize(INITIAL_PAGE_SIZE);
     record(next);
+  };
+
+  const submit = () => applyKeyword(input);
+
+  const pick = (value: string) => {
+    if (!value.trim()) return;
+    applyKeyword(value);
   };
 
   const results = searchQuery.data?.content ?? [];
@@ -155,6 +161,7 @@ export default function SearchScreen() {
             accessibilityLabel="Từ khoá tìm kiếm"
             returnKeyType="search"
             style={styles.input}
+            autoFocus={!initialKeyword}
           />
           {input ? (
             <Pressable
@@ -212,11 +219,7 @@ export default function SearchScreen() {
       ) : null}
 
       {keyword.trim().length === 0 ? (
-        <EmptyState
-          icon="search-outline"
-          title="Tìm người chơi"
-          description="Nhập tên người chơi hoặc tựa game bạn muốn tìm."
-        />
+        <SearchSuggestions onPick={pick} />
       ) : searchQuery.isLoading ? (
         <LoadingView />
       ) : searchQuery.isError ? (

@@ -78,21 +78,24 @@ export default function PersonalScreen() {
   const wallet = balanceQuery.data ?? user?.userBalance;
   const balance = wallet?.balance ?? 0;
   const activeBalance = wallet?.activeBalance ?? 0;
+  // The summary adds the two together, so the waiting half is the difference.
+  const pendingBalance = balance - activeBalance;
 
+  // This button re-reads the wallet only. Releasing pending money is a money
+  // action and lives where that money is listed (/unactive-balance).
   const refreshBalance = async () => {
     if (refreshingBalance) return;
     setRefreshingBalance(true);
     try {
-      await userService.releaseUnActiveBalance();
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: queryKeys.userBalance(userId),
         }),
         refreshUser(),
       ]);
-      toast.show('Cập nhật số dư thành công', 'success');
+      toast.show('Đã tải lại số dư', 'success');
     } catch {
-      toast.show('Cập nhật số dư thất bại', 'error');
+      toast.show('Không tải được số dư', 'error');
     } finally {
       setRefreshingBalance(false);
     }
@@ -164,9 +167,13 @@ export default function PersonalScreen() {
                   />
                 </Pressable>
               </View>
+              <Text style={styles.availableText}>
+                Khả dụng: <Text style={styles.activeBalanceValue}>{formatVnd(activeBalance)}</Text>
+              </Text>
               <Pressable
                 onPress={() => router.push('/unactive-balance')}
                 accessibilityRole="button"
+                accessibilityLabel={`Xem tiền đang chờ về ví, ${formatVnd(pendingBalance)}`}
                 hitSlop={hitSlop.sm}
                 style={({ pressed }) => [
                   styles.activeBalanceRow,
@@ -174,9 +181,9 @@ export default function PersonalScreen() {
                 ]}
               >
                 <Text style={styles.activeBalance}>
-                  Khả dụng:{' '}
+                  Đang chờ về ví:{' '}
                   <Text style={styles.activeBalanceValue}>
-                    {formatVnd(activeBalance)}
+                    {formatVnd(pendingBalance)}
                   </Text>
                 </Text>
                 <Ionicons
@@ -381,6 +388,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 13,
     color: violet[200],
+  },
+  availableText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: violet[200],
+    marginTop: 4,
   },
   activeBalanceValue: {
     fontFamily: fonts.semibold,

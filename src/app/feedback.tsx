@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -34,6 +34,12 @@ const statusOf = (value: number) => {
     color: colors.warning,
     background: colors.warningSoft,
   };
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  Suggest: 'Đề xuất tính năng hoặc thêm mới danh mục game',
+  SystemError: 'Báo cáo lỗi của hệ thống',
+  Service: 'Phản hồi về dịch vụ',
 };
 
 export default function FeedbackListScreen() {
@@ -91,46 +97,43 @@ export default function FeedbackListScreen() {
           style={contentStyle}
           contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <FeedbackRow
-              feedback={item}
-              onPress={() => router.push(`/feedback/${item.id}`)}
-            />
-          )}
+          renderItem={({ item }) => <FeedbackRow feedback={item} />}
         />
       )}
     </SafeAreaView>
   );
 }
 
-function FeedbackRow({
-  feedback,
-  onPress,
-}: {
-  feedback: SystemFeedbackModel;
-  onPress: () => void;
-}) {
+function FeedbackRow({ feedback }: { feedback: SystemFeedbackModel }) {
   const { type } = useResponsive();
+  const [expanded, setExpanded] = useState(false);
   const status = statusOf(feedback.isApprove);
+
+  // The body only exists on the detail endpoint, so it is fetched the first
+  // time the row is opened and kept in the shared cache after that.
+  const detailQuery = useQuery({
+    queryKey: queryKeys.feedbackDetail(feedback.id),
+    enabled: expanded,
+    queryFn: async () => (await feedbackService.getDetail(feedback.id)).content,
+  });
+
+  const detail = detailQuery.data;
+
   return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={`${feedback.title}, ${status.label}`}
-      accessibilityHint="Mở chi tiết phản hồi"
-      hitSlop={hitSlop.sm}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={styles.rowTop}>
+    <View style={styles.card}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${feedback.title}, ${status.label}`}
+        accessibilityHint={expanded ? 'Ẩn nội dung' : 'Xem nội dung'}
+        accessibilityState={{ expanded }}
+        hitSlop={hitSlop.sm}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [styles.rowTop, pressed && styles.pressed]}
+      >
         <Text style={[styles.title, type.title3]} numberOfLines={2}>
           {feedback.title}
         </Text>
-        <View
-          style={[styles.statusPill, { backgroundColor: status.background }]}
-        >
+        <View style={[styles.statusPill, { backgroundColor: status.background }]}>
           <Text
             style={[styles.status, type.caption, { color: status.color }]}
             numberOfLines={1}
@@ -138,11 +141,38 @@ function FeedbackRow({
             {status.label}
           </Text>
         </View>
-      </View>
+      </Pressable>
       <Text style={[styles.date, type.caption]}>
         {formatDateTime(feedback.createdDate)}
       </Text>
-    </Pressable>
+
+      {expanded ? (
+        detailQuery.isLoading ? (
+          <Text style={[styles.detailHint, type.bodySmall]}>Đang tải nội dung…</Text>
+        ) : detailQuery.isError || !detail ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Thử tải lại nội dung"
+            hitSlop={hitSlop.sm}
+            onPress={() => void detailQuery.refetch()}
+            style={({ pressed }) => [styles.detailHint, pressed && styles.pressed]}
+          >
+            <Text style={[type.bodySmall, styles.detailError]}>
+              Không tải được nội dung. Nhấn để thử lại.
+            </Text>
+          </Pressable>
+        ) : (
+          <View style={styles.detail}>
+            <Text style={[styles.detailLabel, type.bodySmall]}>Thể loại</Text>
+            <Text style={[styles.detailValue, type.body]}>
+              {TYPE_LABELS[detail.typeOfFeedback] ?? 'Lỗi gửi'}
+            </Text>
+            <Text style={[styles.detailLabel, type.bodySmall]}>Nội dung</Text>
+            <Text style={[styles.detailValue, type.body]}>{detail.message}</Text>
+          </View>
+        )
+      ) : null}
+    </View>
   );
 }
 
@@ -188,4 +218,21 @@ const styles = StyleSheet.create({
   },
   status: { textAlign: 'center' },
   date: { color: colors.textMuted },
+  detail: {
+    marginTop: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    gap: spacing.xs,
+  },
+  detailLabel: { color: colors.textSecondary },
+  detailValue: { color: colors.text },
+  detailHint: {
+    marginTop: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    color: colors.textMuted,
+  },
+  detailError: { color: colors.danger },
 });

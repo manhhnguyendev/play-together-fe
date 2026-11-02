@@ -24,6 +24,7 @@ import {
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
+import { MAX_MESSAGE_LENGTH } from '@/lib/validators';
 import { useAuthStore } from '@/store/auth';
 import { colors, radius, spacing } from '@/theme';
 
@@ -123,7 +124,7 @@ export default function ReportScreen() {
                 accessibilityLabel="Lý do tố cáo"
                 style={[styles.input, type.body]}
                 multiline
-                maxLength={1000}
+                maxLength={MAX_MESSAGE_LENGTH}
                 textAlignVertical="top"
               />
             </View>

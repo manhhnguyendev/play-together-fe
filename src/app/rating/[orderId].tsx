@@ -28,6 +28,7 @@ import {
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
+import { MAX_MESSAGE_LENGTH } from '@/lib/validators';
 import { colors, hitSlop, radius, spacing, touchTarget } from '@/theme';
 
 export default function RatingScreen() {
@@ -181,7 +182,7 @@ export default function RatingScreen() {
                 accessibilityLabel="Nội dung đánh giá"
                 style={[styles.commentInput, type.body]}
                 multiline
-                maxLength={1000}
+                maxLength={MAX_MESSAGE_LENGTH}
                 textAlignVertical="top"
               />
             </View>

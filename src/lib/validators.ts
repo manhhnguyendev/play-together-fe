@@ -54,3 +54,10 @@ export const validateConfirmPassword = (
 export const OTP_LENGTH = 6;
 
 export const isSixDigitOtp = (value: string) => /^\d{6}$/.test(value);
+
+/**
+ * Hire messages, rating comments and order reports all land in a varchar(500)
+ * column behind a @MaxLength(500) DTO, so the app must stop typing there —
+ * a longer note currently reads fine and then fails with a 400 on submit.
+ */
+export const MAX_MESSAGE_LENGTH = 500;

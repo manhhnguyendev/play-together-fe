@@ -34,6 +34,7 @@ import { useAppRouter } from '@/hooks/useAppRouter';
 import { useResponsive } from '@/hooks/useResponsive';
 import { formatDateTime, formatNumber, formatVnd } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
+import { MAX_MESSAGE_LENGTH } from '@/lib/validators';
 import { useAuthStore } from '@/store/auth';
 import { colors, fonts, hitSlop, radius, spacing } from '@/theme';
 
@@ -362,7 +363,7 @@ export default function SendHiringRequestScreen() {
                   accessibilityLabel="Lời nhắn cho người chơi"
                   style={styles.messageInput}
                   multiline
-                  maxLength={1000}
+                  maxLength={MAX_MESSAGE_LENGTH}
                   textAlignVertical="top"
                 />
               </View>

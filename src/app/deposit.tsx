@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useState } from 'react';
 import {
@@ -87,7 +88,7 @@ export default function DepositScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <AppBar title="Thanh toán qua MoMo" />
+      <AppBar title="Nạp tiền" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -115,6 +116,19 @@ export default function DepositScreen() {
               />
               <Text style={[type.body, styles.unit]}>đ</Text>
             </View>
+            <Text style={[styles.hint, type.caption]}>
+              Nạp tối thiểu 10.000đ, tối đa 50.000.000đ
+            </Text>
+          </View>
+
+          <View style={styles.methodRow}>
+            <Image
+              source={require('../../assets/images/momologo.png')}
+              style={styles.methodLogo}
+              contentFit="contain"
+              accessibilityLabel="MoMo"
+            />
+            <Text style={[styles.methodName, type.bodyMedium]}>Ví MoMo</Text>
           </View>
         </ScrollView>
         <View
@@ -137,13 +151,19 @@ export default function DepositScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  scroll: { flexGrow: 1, paddingTop: spacing.md, paddingBottom: spacing.md },
+  scroll: {
+    flexGrow: 1,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
+    gap: spacing.xs,
   },
   amountRow: {
     flexDirection: 'row',
@@ -152,6 +172,19 @@ const styles = StyleSheet.create({
   },
   amountInput: { flex: 1, minWidth: 0 },
   unit: { ...FLOAT_BAND_STYLE, color: colors.text },
+  hint: { color: colors.textMuted },
+  methodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  methodLogo: { width: 32, height: 32 },
+  methodName: { color: colors.text },
   footer: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,

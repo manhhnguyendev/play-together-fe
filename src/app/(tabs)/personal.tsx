@@ -212,7 +212,7 @@ export default function PersonalScreen() {
 
             <View style={styles.walletActions}>
               <Pressable
-                onPress={() => router.push('/deposit-method')}
+                onPress={() => router.push('/deposit')}
                 accessibilityRole="button"
                 style={({ pressed }) => [
                   styles.walletAction,
@@ -229,7 +229,7 @@ export default function PersonalScreen() {
                 <Text style={styles.walletActionLabel}>Nạp tiền</Text>
               </Pressable>
               <Pressable
-                onPress={() => router.push('/withdraw-amount')}
+                onPress={() => router.push('/withdraw')}
                 accessibilityRole="button"
                 style={({ pressed }) => [
                   styles.walletAction,

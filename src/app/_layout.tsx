@@ -26,10 +26,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 const SHEET_ROUTES = [
   'transactions',
   'unactive-balance',
-  'deposit-method',
   'deposit',
-  'withdraw-amount',
-  'withdraw-method',
   'withdraw',
   'personal-change-password',
 ] as const;

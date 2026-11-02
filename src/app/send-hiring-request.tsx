@@ -310,7 +310,7 @@ export default function SendHiringRequestScreen() {
                     accessibilityRole="button"
                     accessibilityLabel="Nạp tiền"
                     hitSlop={hitSlop.sm}
-                    onPress={() => router.push('/deposit-method')}
+                    onPress={() => router.push('/deposit')}
                     style={({ pressed }) => [
                       styles.depositButton,
                       pressed && styles.pressed,

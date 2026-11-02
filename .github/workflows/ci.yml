@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, typecheck and bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPO_NO_TELEMETRY: 1
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The same gates the app is checked with locally: eslint-config-expo, then
+      # tsc, then a real Metro web bundle so a broken import cannot pass CI.
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npx expo export --platform web --output-dir dist/ci-web-bundle
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-bundle
+          path: dist/ci-web-bundle
+          if-no-files-found: ignore
+          retention-days: 3

@@ -1,12 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import {
-  FlatList,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { gameService, hobbyService } from '@/api/services/catalog';
 import {
   AppBar,
@@ -16,13 +14,16 @@ import {
   LoadingView,
   useToast,
 } from '@/components/ui';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, control, radius, spacing } from '@/theme';
 
 export default function UpdateHobbiesScreen() {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, columns, type } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? '';
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
@@ -93,7 +94,7 @@ export default function UpdateHobbiesScreen() {
   const loading = gamesQuery.isLoading || hobbiesQuery.isLoading;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Cài đặt sở thích" />
       {loading ? (
         <LoadingView />
@@ -107,34 +108,57 @@ export default function UpdateHobbiesScreen() {
       ) : (
         <>
           <FlatList
+            style={contentStyle}
             data={games}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
+            numColumns={columns(240, spacing.sm)}
+            contentContainerStyle={[
+              styles.list,
+              { paddingHorizontal: gutter, gap: spacing.sm },
+            ]}
+            showsVerticalScrollIndicator={false}
             ListHeaderComponent={
-              <Text style={styles.heading}>Bạn thích tựa games nào?</Text>
+              <Text style={[styles.heading, type.title3]}>
+                Bạn thích tựa games nào?
+              </Text>
             }
-            renderItem={({ item }) => (
-              <View style={styles.row}>
-                <Checkbox
-                  checked={Boolean(selected[item.id])}
-                  onPress={() =>
-                    setOverrides((current) => ({
-                      ...current,
-                      [item.id]: !selected[item.id],
-                    }))
-                  }
-                  label={item.displayName || item.name}
-                />
-              </View>
-            )}
+            renderItem={({ item }) => {
+              const active = Boolean(selected[item.id]);
+              const label = item.displayName || item.name;
+              return (
+                <View style={styles.cell}>
+                  <View
+                    style={[styles.tile, active && styles.tileActive]}
+                  >
+                    <Checkbox
+                      checked={active}
+                      onPress={() =>
+                        setOverrides((current) => ({
+                          ...current,
+                          [item.id]: !selected[item.id],
+                        }))
+                      }
+                      label={label}
+                    />
+                  </View>
+                </View>
+              );
+            }}
           />
-          <View style={styles.footer}>
-            <Button
-              label="Cập nhật"
-              size="lg"
-              loading={submitting}
-              onPress={() => void submit()}
-            />
+          <View
+            style={[
+              styles.footer,
+              { paddingBottom: insets.bottom + spacing.sm },
+            ]}
+          >
+            <View style={styles.footerInner}>
+              <Button
+                label="Cập nhật"
+                size="lg"
+                loading={submitting}
+                onPress={() => void submit()}
+              />
+            </View>
           </View>
         </>
       )}
@@ -143,19 +167,32 @@ export default function UpdateHobbiesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  list: { padding: spacing.md, paddingBottom: spacing.lg },
+  safe: { flex: 1, backgroundColor: colors.background },
+  list: { paddingVertical: spacing.md, paddingBottom: spacing.lg },
   heading: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  row: { paddingVertical: 6 },
+  cell: { flex: 1, minWidth: 0 },
+  tile: {
+    minHeight: control.buttonSm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+  },
+  tileActive: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primaryFaint,
+  },
   footer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  footerInner: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

@@ -1,26 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import {
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { charityService } from '@/api/services/content';
 import {
   AppBar,
   Button,
   ErrorView,
   LoadingView,
+  SectionHeader,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function CharityDetailScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, type, isSmall } = useResponsive();
   const params = useLocalSearchParams<{ charityId?: string }>();
   const charityId =
     typeof params.charityId === 'string' ? params.charityId : '';
@@ -32,10 +37,11 @@ export default function CharityDetailScreen() {
   });
 
   const charity = charityQuery.data;
+  const logoSize = isSmall ? 104 : 128;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
-      <AppBar title="Tổ chức từ thiện" transparent />
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <AppBar title="Tổ chức từ thiện" />
       {charityQuery.isLoading ? (
         <LoadingView />
       ) : charityQuery.isError || !charity ? (
@@ -43,33 +49,44 @@ export default function CharityDetailScreen() {
       ) : (
         <>
           <ScrollView
-            contentContainerStyle={styles.scroll}
+            contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.hero}>
-              <Image
-                source={{ uri: charity.avatar }}
-                style={styles.avatar}
-                contentFit="cover"
-              />
-              <Text style={styles.name}>{charity.organizationName}</Text>
+            <View style={[styles.column, contentStyle]}>
+              <View style={styles.hero}>
+                <Image
+                  source={{ uri: charity.avatar }}
+                  style={[styles.avatar, { width: logoSize, height: logoSize }]}
+                  contentFit="cover"
+                  transition={140}
+                />
+                <Text style={[styles.name, type.title2]} numberOfLines={2}>
+                  {charity.organizationName}
+                </Text>
+              </View>
+
+              <View style={styles.card}>
+                <SectionHeader title="Giới thiệu" icon="information-circle-outline" />
+                <Text style={[styles.description, type.body]}>{charity.information}</Text>
+              </View>
+
+              <View style={styles.card}>
+                <SectionHeader title="Thông tin liên hệ" icon="call-outline" />
+                <ContactBlock label="Địa chỉ:" value={charity.address} />
+                <ContactLine label="Điện thoại: " value={charity.phone} />
+                <ContactLine label="Email: " value={charity.email} />
+              </View>
             </View>
-
-            <Text style={styles.sectionTitle}>Giới thiệu</Text>
-            <Text style={styles.description}>{charity.information}</Text>
-
-            <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>
-            <ContactBlock label="Địa chỉ:" value={charity.address} />
-            <ContactLine label="Điện thoại: " value={charity.phone} />
-            <ContactLine label="Email: " value={charity.email} />
           </ScrollView>
-          <View style={styles.footer}>
-            <Button
-              label="Gửi tiền từ thiện"
-              size="lg"
-              icon={<Ionicons name="heart" size={18} color={colors.white} />}
-              onPress={() => router.push(`/charity-donate/${charity.id}`)}
-            />
+          <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}>
+            <View style={styles.footerInner}>
+              <Button
+                label="Gửi tiền từ thiện"
+                size="lg"
+                icon={<Ionicons name="heart" size={18} color={colors.textOnPrimary} />}
+                onPress={() => router.push(`/charity-donate/${charity.id}`)}
+              />
+            </View>
           </View>
         </>
       )}
@@ -98,63 +115,60 @@ function ContactLine({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm },
+  column: { gap: spacing.sm },
   hero: {
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
   },
   avatar: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
+    borderRadius: radius.pill,
     backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   name: {
-    fontFamily: fonts.semibold,
-    fontSize: 20,
-    color: colors.text,
+    color: colors.textStrong,
     textAlign: 'center',
   },
-  sectionTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    color: colors.text,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.xs,
   },
   description: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.text,
+    color: colors.textSecondary,
   },
-  contactBlock: { gap: 2, marginTop: spacing.xs },
+  contactBlock: { gap: 2, marginTop: spacing.xxs },
   contactLine: {
     flexDirection: 'row',
     gap: 2,
-    marginTop: spacing.xs,
+    marginTop: spacing.xxs,
   },
   contactLabel: {
     fontFamily: fonts.semibold,
     fontSize: 14,
     color: colors.text,
+    flexShrink: 0,
   },
   contactValue: {
     flexShrink: 1,
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.text,
+    color: colors.textSecondary,
     lineHeight: 21,
   },
   footer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  footerInner: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

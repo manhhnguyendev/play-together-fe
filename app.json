@@ -5,8 +5,8 @@
     "scheme": "playtogether",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/icon_v2.png",
+    "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
       "expo-secure-store",
@@ -16,8 +16,12 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/logo_splash.png",
-          "imageWidth": 200
+          "image": "./assets/images/logo_splash_v2.png",
+          "dark": {
+            "image": "./assets/images/logo_splash_v2.png",
+            "backgroundColor": "#101219"
+          },
+          "imageWidth": 210
         }
       ],
       [
@@ -35,7 +39,7 @@
       "package": "com.playtogether.app",
       "adaptiveIcon": {
         "backgroundColor": "#EFECFF",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/android-icon-foreground_v2.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },

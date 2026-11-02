@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,24 +12,29 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ratingService } from '@/api/services/content';
 import { orderService } from '@/api/services/orders';
 import {
   AppBar,
   Avatar,
   Button,
+  EmptyState,
   ErrorView,
   LoadingView,
   RatingStars,
   useToast,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, hitSlop, radius, spacing, touchTarget } from '@/theme';
 
 export default function RatingScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, isSmall, type } = useResponsive();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const orderId = typeof params.orderId === 'string' ? params.orderId : '';
 
@@ -74,6 +81,28 @@ export default function RatingScreen() {
 
   const order = orderQuery.data;
 
+  // A cancelled booking, an already-rated session or a closed window all leave
+  // nothing to rate; the server refuses the POST, so the form must not offer it.
+  if (!order.canRate) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+        <AppBar title="Kết thúc thuê" />
+        <EmptyState
+          icon="star-outline"
+          title="Không đánh giá được lượt thuê này"
+          description="Lượt thuê chưa diễn ra, đã được đánh giá, hoặc đã hết thời gian cho phép."
+        />
+        <View style={styles.closedAction}>
+          <Button
+            label="Về lịch sử"
+            size="md"
+            onPress={() => router.replace('/(tabs)/history')}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const submit = () => {
     if (rating <= 0) {
       toast.show('Vui lòng đánh giá!', 'error');
@@ -92,107 +121,152 @@ export default function RatingScreen() {
         title="Kết thúc thuê"
         right={
           <Pressable
-            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Tố cáo đơn này"
+            hitSlop={hitSlop.sm}
             onPress={() =>
               router.push({
                 pathname: '/report/[orderId]',
                 params: { orderId: order.id },
               })
             }
-            style={({ pressed }) => [styles.reportButton, pressed && { opacity: 0.6 }]}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="warning-outline" size={22} color={colors.text} />
+            <Ionicons name="warning-outline" size={22} color={colors.danger} />
           </Pressable>
         }
       />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <Avatar uri={order.toUser?.avatar} name={order.toUser?.name} size={150} />
-          <Text style={styles.name}>{order.toUser?.name ?? 'Người chơi'}</Text>
-        </View>
+        <ScrollView
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.column}>
+            <View style={styles.card}>
+              <View style={styles.header}>
+                <Avatar
+                  uri={order.toUser?.avatar}
+                  name={order.toUser?.name}
+                  size={isSmall ? 120 : 150}
+                />
+                <Text style={[styles.name, type.title2]} numberOfLines={1}>
+                  {order.toUser?.name ?? 'Người chơi'}
+                </Text>
+              </View>
+            </View>
 
-        <View style={styles.stars}>
-          <RatingStars
-            value={rating}
-            size={42}
-            editable
-            onChange={setRating}
-          />
-        </View>
+            <View style={[styles.card, styles.starCard]}>
+              <RatingStars
+                value={rating}
+                size={isSmall ? 36 : 42}
+                editable
+                onChange={setRating}
+              />
+            </View>
 
-        <View style={styles.commentWrap}>
-          <TextInput
-            value={comment}
-            onChangeText={setComment}
-            placeholder="Nhập vào đánh giá người chơi của bạn"
-            placeholderTextColor={colors.textFaint}
-            style={styles.commentInput}
-            multiline
-            maxLength={1000}
-            textAlignVertical="top"
-          />
-        </View>
-      </ScrollView>
+            <View style={styles.card}>
+              <TextInput
+                value={comment}
+                onChangeText={setComment}
+                placeholder="Nhập vào đánh giá người chơi của bạn"
+                placeholderTextColor={colors.textFaint}
+                accessibilityLabel="Nội dung đánh giá"
+                style={[styles.commentInput, type.body]}
+                multiline
+                maxLength={1000}
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
+        </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          label="Gửi"
-          onPress={submit}
-          loading={rateMutation.isPending}
-        />
-      </View>
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: insets.bottom + spacing.sm },
+          ]}
+        >
+          <View style={styles.footerInner}>
+            <Button
+              label="Gửi"
+              size="lg"
+              onPress={submit}
+              loading={rateMutation.isPending}
+            />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { paddingBottom: spacing.xxl },
-  reportButton: {
-    width: 44,
-    height: 44,
+  safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  closedAction: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+    maxWidth: 520,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  scroll: {
+    paddingVertical: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  iconButton: {
+    width: touchTarget,
+    height: touchTarget,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pressed: { opacity: 0.6, backgroundColor: colors.surfaceMuted },
   header: {
     alignItems: 'center',
     gap: spacing.xs,
-    paddingTop: spacing.lg,
+    paddingVertical: spacing.xs,
   },
   name: {
-    fontFamily: fonts.semibold,
-    fontSize: 20,
     color: colors.text,
+    textAlign: 'center',
+    flexShrink: 1,
   },
-  stars: {
+  starCard: {
     alignItems: 'center',
     paddingVertical: spacing.lg,
   },
-  commentWrap: {
-    marginHorizontal: spacing.md,
-    minHeight: 240,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    padding: spacing.sm,
-  },
   commentInput: {
     minHeight: 220,
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 21,
     color: colors.text,
-    padding: 0,
+    lineHeight: 22,
   },
   footer: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
+  },
+  footerInner: {
+    maxWidth: 420,
+    width: '100%',
+    alignSelf: 'center',
   },
 });

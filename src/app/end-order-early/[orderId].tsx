@@ -1,7 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,7 +11,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { orderService } from '@/api/services/orders';
 import { OrderParties } from '@/components/orders/OrderParties';
 import {
@@ -17,12 +22,15 @@ import {
   Button,
   ErrorView,
   LoadingView,
+  SectionHeader,
   useToast,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { formatVnd } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, control, fonts, radius, spacing, touchTarget } from '@/theme';
 
 const OTHER_REASON = 'other';
 
@@ -34,8 +42,10 @@ const REASONS = [
 ];
 
 export default function EndOrderEarlyScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle } = useResponsive();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const orderId = typeof params.orderId === 'string' ? params.orderId : '';
   const currentUser = useAuthStore((state) => state.user);
@@ -102,53 +112,80 @@ export default function EndOrderEarlyScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Kết thúc thuê sớm" />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <OrderParties left={left} right={right} />
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.column, contentStyle]}>
+            <OrderParties left={left} right={right} />
 
-        <View style={styles.summary}>
-          <Text style={styles.summaryText}>
-            {order.totalTimes} giờ · {formatVnd(order.totalPrices)}
-          </Text>
-        </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryText}>
+                {order.totalTimes} giờ
+              </Text>
+              <Text style={styles.summaryDot}>·</Text>
+              <Text style={styles.summaryValue}>
+                {formatVnd(order.totalPrices)}
+              </Text>
+            </View>
 
-        <View style={styles.reasons}>
-          {REASONS.map((reason) => (
-            <ReasonRow
-              key={reason}
-              label={reason}
-              selected={selected === reason}
-              onPress={() => setSelected(reason)}
+            <View style={styles.card}>
+              <SectionHeader title="Lý do kết thúc sớm" icon="help-circle-outline" />
+              <View style={styles.reasons}>
+                {REASONS.map((reason) => (
+                  <ReasonRow
+                    key={reason}
+                    label={reason}
+                    selected={selected === reason}
+                    onPress={() => setSelected(reason)}
+                  />
+                ))}
+                <ReasonRow
+                  label="Lý do khác"
+                  selected={selected === OTHER_REASON}
+                  onPress={() => setSelected(OTHER_REASON)}
+                />
+                {selected === OTHER_REASON ? (
+                  <TextInput
+                    value={customReason}
+                    onChangeText={setCustomReason}
+                    placeholder="Nhập lý do của bạn"
+                    placeholderTextColor={colors.textFaint}
+                    accessibilityLabel="Lý do khác"
+                    style={styles.input}
+                    maxLength={500}
+                  />
+                ) : null}
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+
+        <View
+          style={[
+            styles.footer,
+            {
+              paddingHorizontal: gutter,
+              paddingBottom: insets.bottom + spacing.sm,
+            },
+          ]}
+        >
+          <View style={styles.footerRow}>
+            <Button
+              label="Kết thúc"
+              variant="danger"
+              size="md"
+              onPress={submit}
+              loading={finishMutation.isPending}
             />
-          ))}
-          <ReasonRow
-            label="Lý do khác"
-            selected={selected === OTHER_REASON}
-            onPress={() => setSelected(OTHER_REASON)}
-          />
-          {selected === OTHER_REASON ? (
-            <TextInput
-              value={customReason}
-              onChangeText={setCustomReason}
-              placeholder="Nhập lý do của bạn"
-              placeholderTextColor={colors.textFaint}
-              style={styles.input}
-              maxLength={500}
-            />
-          ) : null}
+          </View>
         </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <Button
-          label="Kết thúc"
-          onPress={submit}
-          loading={finishMutation.isPending}
-        />
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -164,51 +201,81 @@ function ReasonRow({
 }) {
   return (
     <Pressable
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [styles.reasonRow, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.reasonRow,
+        pressed && styles.pressed,
+        selected && styles.reasonRowSelected,
+      ]}
     >
       <View style={[styles.radio, selected && styles.radioSelected]}>
         {selected ? <View style={styles.radioDot} /> : null}
       </View>
-      <Text style={styles.reasonLabel}>{label}</Text>
+      <Text style={[styles.reasonLabel, selected && styles.reasonLabelActive]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { paddingBottom: spacing.xxl },
-  summary: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
+  safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  scroll: { paddingVertical: spacing.sm, gap: spacing.sm },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
   },
   summaryText: {
     fontFamily: fonts.medium,
     fontSize: 14,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
-  reasons: { paddingHorizontal: spacing.md, gap: spacing.xxs },
+  summaryDot: { fontFamily: fonts.regular, fontSize: 14, color: colors.textFaint },
+  summaryValue: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: colors.primaryInk,
+  },
+  reasons: { gap: spacing.xxs, marginTop: spacing.xxs },
   reasonRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.xs,
+    minHeight: touchTarget,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radius.sm,
   },
+  reasonRowSelected: { backgroundColor: colors.primaryFaint },
+  pressed: { opacity: 0.7 },
   radio: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radius.pill,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioSelected: { borderColor: colors.primary },
+  radioSelected: { borderColor: colors.primaryAction },
   radioDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryAction,
   },
   reasonLabel: {
     flex: 1,
@@ -216,23 +283,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
+  reasonLabelActive: { fontFamily: fonts.semibold, color: colors.primaryInk },
   input: {
     marginTop: spacing.xs,
-    marginLeft: 30,
-    minHeight: 46,
+    marginLeft: spacing.xs,
+    minHeight: control.inputHeight,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.sm,
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.text,
+    backgroundColor: colors.background,
   },
   footer: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
+  footerRow: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

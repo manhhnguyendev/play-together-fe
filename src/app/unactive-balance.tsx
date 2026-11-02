@@ -8,11 +8,14 @@ import {
   ErrorView,
   LoadingView,
 } from '@/components/ui';
-import { formatDateTimeAmPm, formatVnd } from '@/lib/format';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatDateTime, formatVnd } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 export default function UnActiveBalanceScreen() {
+  const { gutter, contentStyle, type } = useResponsive();
+
   const balancesQuery = useQuery({
     queryKey: queryKeys.unActiveBalances,
     queryFn: async () => userService.getUnActiveBalances(),
@@ -34,17 +37,26 @@ export default function UnActiveBalanceScreen() {
           description="Chưa có khoản tiền nào đang chờ xử lý."
         />
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          showsVerticalScrollIndicator={false}
+        >
           {balances.map((item) => (
-            <View key={item.id} style={styles.row}>
+            <View key={item.id} style={styles.card}>
               <View style={styles.rowTop}>
-                <Text style={styles.money}>+ {formatVnd(item.money)}</Text>
-                <Text style={styles.status}>Chưa xử lý</Text>
+                <Text style={[styles.money, type.title3]}>
+                  + {formatVnd(item.money)}
+                </Text>
+                <View style={styles.statusPill}>
+                  <Text style={[styles.statusText, type.caption]}>
+                    Chưa xử lý
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.date}>
-                {formatDateTimeAmPm(item.dateActive)}
+              <Text style={[styles.date, type.bodySmall]}>
+                {formatDateTime(item.dateActive)}
               </Text>
-              <View style={styles.divider} />
             </View>
           ))}
         </ScrollView>
@@ -54,36 +66,35 @@ export default function UnActiveBalanceScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  list: { paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  row: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
+    gap: spacing.sm,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.xxs,
   },
   rowTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
   },
-  money: {
-    fontFamily: fonts.medium,
-    fontSize: 15,
-    color: colors.success,
+  money: { color: colors.success, flexShrink: 1 },
+  statusPill: {
+    minHeight: 26,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.warningSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  status: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.warning,
-  },
-  date: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 3,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginTop: spacing.sm,
-  },
+  statusText: { color: colors.warning },
+  date: { color: colors.textMuted },
 });

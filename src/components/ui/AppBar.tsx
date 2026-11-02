@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, spacing } from '@/theme';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { colors, control, fonts, radius, spacing } from '@/theme';
+import { usePressAnimation } from '@/hooks/usePressAnimation';
 
 interface AppBarProps {
   title: string;
@@ -21,25 +22,34 @@ export function AppBar({
   showBack = true,
   transparent = false,
 }: AppBarProps) {
-  const router = useRouter();
+  const router = useAppRouter();
+  const back = usePressAnimation();
 
   return (
     <View
+      accessibilityRole="header"
       style={[
         styles.container,
         { backgroundColor: transparent ? 'transparent' : colors.surface },
       ]}
     >
       {showBack ? (
-        <Pressable
-          hitSlop={10}
-          onPress={onBack ?? (() => router.back())}
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </Pressable>
+        <Animated.View style={back.style}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Quay lại"
+            onPress={onBack ?? (() => router.back())}
+            onPressIn={back.onPressIn}
+            onPressOut={back.onPressOut}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons name="chevron-back" size={22} color={colors.text} />
+            </View>
+          </Pressable>
+        </Animated.View>
       ) : (
-        <View style={styles.back} />
+        <View style={styles.iconButton} />
       )}
 
       <View style={styles.titleWrap}>
@@ -60,29 +70,35 @@ export function AppBar({
 
 const styles = StyleSheet.create({
   container: {
-    minHeight: 56,
+    minHeight: control.appBarHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  back: {
-    width: 44,
-    height: 44,
+  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
   },
-  pressed: { opacity: 0.55 },
-  titleWrap: { flex: 1, alignItems: 'center' },
+  pressed: { opacity: 0.6 },
+  titleWrap: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xxs },
   title: {
     fontFamily: fonts.semibold,
     fontSize: 17,
+    lineHeight: 23,
     color: colors.text,
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     fontSize: 11,
+    lineHeight: 15,
     color: colors.textMuted,
     marginTop: 1,
   },

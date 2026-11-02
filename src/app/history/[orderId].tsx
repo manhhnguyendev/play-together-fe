@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,19 +13,21 @@ import {
   orderStatusColor,
   orderStatusLabel,
 } from '@/features/orders/status';
+import { useResponsive } from '@/hooks/useResponsive';
 import {
-  formatDateTimeAmPm,
+  formatDateTime,
   formatVnd,
   isEmptyDate,
 } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing, touchTarget } from '@/theme';
 
 export default function HistoryDetailScreen() {
   const params = useLocalSearchParams<{ orderId?: string }>();
   const orderId = typeof params.orderId === 'string' ? params.orderId : '';
   const currentUser = useAuthStore((state) => state.user);
+  const { gutter, contentStyle } = useResponsive();
 
   const detailQuery = useQuery({
     queryKey: queryKeys.orderDetail(orderId),
@@ -67,130 +70,141 @@ export default function HistoryDetailScreen() {
     : (order.ratings?.[0] ?? null);
   const showFinalPrice = isHirer && !isClosedOrder(order.status);
   const hasReason = Boolean(order.reason && order.reason.trim().length > 0);
+  const timeline = historyQuery.data ?? [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Chi tiết lượt thuê" />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text
-          style={[styles.status, { color: orderStatusColor(order.status) }]}
-        >
-          {orderStatusLabel(order.status)}
-        </Text>
-
-        <OrderParties left={left} right={right} />
-
-        <View style={styles.rows}>
-          <Row label="Thời lượng thuê:" value={`${order.totalTimes} giờ`} />
-          {isHirer ? (
-            <Row
-              label="Chi phí dự kiến:"
-              value={formatVnd(order.totalPrices)}
+        <View style={[styles.column, contentStyle]}>
+          <View style={styles.statusCard}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: orderStatusColor(order.status) },
+              ]}
             />
-          ) : null}
-          {isPlayer ? (
-            <Row
-              label="Số tiền dự kiến:"
-              value={formatVnd(order.totalPrices)}
-            />
-          ) : null}
-          {showFinalPrice ? (
-            <Row
-              label="Chi phí cuối cùng:"
-              value={formatVnd(orderHirerFinalPrice(order))}
-              emphasis
-            />
-          ) : null}
-          {isPlayer ? (
-            <Row
-              label="Số tiền nhận được:"
-              value={formatVnd(order.finalPrices)}
-              emphasis
-            />
-          ) : null}
-          {isEmptyDate(order.timeStart) ? (
-            <Row
-              label="Thời gian:"
-              value={formatDateTimeAmPm(order.processExpired)}
-            />
-          ) : (
-            <>
-              <Row
-                label="Thời gian bắt đầu:"
-                value={formatDateTimeAmPm(order.timeStart)}
-              />
-              <Row
-                label="Thời gian kết thúc:"
-                value={formatDateTimeAmPm(order.timeFinish)}
-              />
-            </>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tựa game đã chọn:</Text>
-          {games.map((name, index) => (
-            <Text key={`${name}-${index}`} style={styles.bullet}>
-              • {name}
+            <Text
+              style={[styles.status, { color: orderStatusColor(order.status) }]}
+            >
+              {orderStatusLabel(order.status)}
             </Text>
-          ))}
-        </View>
-
-        {hasReason ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Lý do :</Text>
-            <Text style={styles.reasonText}>{order.reason}</Text>
           </View>
-        ) : null}
 
-        {historyQuery.data && historyQuery.data.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tiến trình:</Text>
-            {historyQuery.data.map((entry, index) => (
-              <View key={entry.id} style={styles.timelineRow}>
-                <View style={styles.timelineMarker}>
-                  <View
-                    style={[
-                      styles.timelineDot,
-                      {
-                        backgroundColor: orderStatusColor(entry.toStatus),
-                      },
-                    ]}
-                  />
-                  {index < (historyQuery.data?.length ?? 0) - 1 ? (
-                    <View style={styles.timelineLine} />
-                  ) : null}
-                </View>
-                <View style={styles.timelineBody}>
-                  <Text style={styles.timelineTitle}>
-                    {orderStatusLabel(entry.toStatus)}
-                  </Text>
-                  <Text style={styles.timelineTime}>
-                    {formatDateTimeAmPm(entry.createdAt)}
-                  </Text>
-                  {entry.reason ? (
-                    <Text style={styles.timelineReason}>{entry.reason}</Text>
-                  ) : null}
-                </View>
+          <OrderParties left={left} right={right} />
+
+          <View style={styles.card}>
+            <Row label="Thời lượng thuê" value={`${order.totalTimes} giờ`} />
+            {isHirer ? (
+              <Row label="Chi phí dự kiến" value={formatVnd(order.totalPrices)} />
+            ) : null}
+            {isPlayer ? (
+              <Row
+                label="Số tiền dự kiến"
+                value={formatVnd(order.totalPrices)}
+              />
+            ) : null}
+            {showFinalPrice ? (
+              <Row
+                label="Chi phí cuối cùng"
+                value={formatVnd(orderHirerFinalPrice(order))}
+                emphasis
+              />
+            ) : null}
+            {isPlayer ? (
+              <Row
+                label="Số tiền nhận được"
+                value={formatVnd(order.finalPrices)}
+                emphasis
+              />
+            ) : null}
+            <View style={styles.divider} />
+            {isEmptyDate(order.timeStart) ? (
+              <Row
+                label="Thời gian"
+                value={formatDateTime(order.processExpired)}
+              />
+            ) : (
+              <>
+                <Row
+                  label="Thời gian bắt đầu"
+                  value={formatDateTime(order.timeStart)}
+                />
+                <Row
+                  label="Thời gian kết thúc"
+                  value={formatDateTime(order.timeFinish)}
+                />
+              </>
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Tựa game đã chọn</Text>
+            {games.map((name, index) => (
+              <View key={`${name}-${index}`} style={styles.bulletRow}>
+                <View style={styles.bulletDot} />
+                <Text style={styles.bullet}>{name}</Text>
               </View>
             ))}
           </View>
-        ) : null}
 
-        {rating ? (
-          <View style={styles.section}>
-            <View style={styles.ratingRow}>
-              <Text style={styles.sectionTitle}>Đánh giá: </Text>
-              <Text style={styles.ratingValue}>★ {rating.rate}</Text>
+          {hasReason ? (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Lý do</Text>
+              <Text style={styles.reasonText}>{order.reason}</Text>
             </View>
-            <View style={styles.commentBox}>
-              <Text style={styles.commentText}>{rating.comment}</Text>
+          ) : null}
+
+          {timeline.length > 0 ? (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Tiến trình</Text>
+              {timeline.map((entry, index) => (
+                <View key={entry.id} style={styles.timelineRow}>
+                  <View style={styles.timelineMarker}>
+                    <View
+                      style={[
+                        styles.timelineDot,
+                        { backgroundColor: orderStatusColor(entry.toStatus) },
+                      ]}
+                    />
+                    {index < timeline.length - 1 ? (
+                      <View style={styles.timelineLine} />
+                    ) : null}
+                  </View>
+                  <View style={styles.timelineBody}>
+                    <Text style={styles.timelineTitle}>
+                      {orderStatusLabel(entry.toStatus)}
+                    </Text>
+                    <Text style={styles.timelineTime}>
+                      {formatDateTime(entry.createdAt)}
+                    </Text>
+                    {entry.reason ? (
+                      <Text style={styles.timelineReason}>{entry.reason}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
             </View>
-          </View>
-        ) : null}
+          ) : null}
+
+          {rating ? (
+            <View style={styles.card}>
+              <View style={styles.ratingRow}>
+                <Text style={styles.sectionTitle}>Đánh giá</Text>
+                <View style={styles.ratingValue}>
+                  <Ionicons name="star" size={14} color={colors.gold} />
+                  <Text style={styles.ratingNumber}>{rating.rate}</Text>
+                </View>
+              </View>
+              <View style={styles.commentBox}>
+                <Text style={styles.commentText}>{rating.comment}</Text>
+              </View>
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -216,18 +230,42 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { paddingBottom: spacing.xxl },
-  status: {
-    textAlign: 'center',
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    paddingTop: spacing.md,
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm, gap: spacing.sm },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: 2,
   },
-  rows: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  row: {
+  statusCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: touchTarget,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  statusDot: { width: 9, height: 9, borderRadius: radius.pill },
+  status: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    letterSpacing: -0.2,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: spacing.xxs,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: spacing.md,
     paddingVertical: 8,
@@ -235,7 +273,7 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   rowValue: {
     flex: 1,
@@ -244,40 +282,61 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'right',
   },
-  rowEmphasis: { fontFamily: fonts.bold, color: colors.primaryDark },
-  section: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    gap: 4,
-  },
+  rowEmphasis: { fontFamily: fonts.bold, color: colors.primaryInk },
   sectionTitle: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: 15,
     color: colors.text,
+    letterSpacing: -0.2,
+    marginBottom: spacing.xxs,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: 3,
+  },
+  bulletDot: {
+    width: 5,
+    height: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryMuted,
   },
   bullet: {
+    flex: 1,
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.text,
-    paddingLeft: spacing.xs,
   },
   reasonText: {
     fontFamily: fonts.regular,
     fontSize: 14,
     lineHeight: 21,
+    color: colors.textSecondary,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  ratingValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingNumber: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
     color: colors.text,
   },
-  ratingRow: { flexDirection: 'row', alignItems: 'center' },  ratingValue: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-    color: colors.warning,
-  },
   commentBox: {
-    minHeight: 90,
+    minHeight: 88,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     padding: spacing.sm,
+    backgroundColor: colors.background,
   },
   commentText: {
     fontFamily: fonts.regular,
@@ -285,34 +344,18 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.text,
   },
-  timelineRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-  timelineMarker: {
-    alignItems: 'center',
-    width: 12,
-  },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginTop: 4,
-  },
+  timelineRow: { flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.xs },
+  timelineMarker: { alignItems: 'center', width: 12 },
+  timelineDot: { width: 10, height: 10, borderRadius: radius.pill, marginTop: 5 },
   timelineLine: {
     flex: 1,
     width: 2,
     marginTop: 4,
     backgroundColor: colors.border,
   },
-  timelineBody: {
-    flex: 1,
-    paddingBottom: spacing.md,
-    gap: 2,
-  },
+  timelineBody: { flex: 1, paddingBottom: spacing.md, gap: 2 },
   timelineTitle: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 14,
     color: colors.text,
   },
@@ -324,6 +367,7 @@ const styles = StyleSheet.create({
   timelineReason: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.textMuted,
+    lineHeight: 19,
+    color: colors.textSecondary,
   },
 });

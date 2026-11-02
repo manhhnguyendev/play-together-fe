@@ -1,15 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { feedbackService } from '@/api/services/content';
 import {
   AppBar,
@@ -18,8 +16,10 @@ import {
   TextField,
   useToast,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 const TYPE_OPTIONS = [
   { label: 'Báo cáo lỗi của hệ thống', value: 'SystemError' },
@@ -31,9 +31,11 @@ const TYPE_OPTIONS = [
 ];
 
 export default function CreateFeedbackScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle } = useResponsive();
   const [type, setType] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -64,53 +66,62 @@ export default function CreateFeedbackScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Tạo phản hồi về hệ thống" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.form}>
-            <View>
-              <Text style={styles.label}>Chọn thể loại: </Text>
+          <View style={styles.column}>
+            <View style={styles.card}>
               <SelectField
-                placeholder="Thể loại phản hồi"
+                label="Thể loại"
+                placeholder="Chọn thể loại phản hồi"
+                variant="floating"
                 value={type}
                 options={TYPE_OPTIONS}
                 onChange={setType}
               />
+
+              <TextField
+                label="Tiêu đề"
+                value={title}
+                onChangeText={setTitle}
+                maxLength={200}
+                variant="floating"
+              />
+
+              <TextField
+                label="Nội dung phản hồi"
+                value={message}
+                onChangeText={setMessage}
+                placeholder="Mô tả vấn đề bạn gặp phải"
+                maxLength={1000}
+                multiline
+                variant="floating"
+                containerStyle={styles.message}
+              />
             </View>
-
-            <TextField
-              label="Nhập tiêu đề phản hồi"
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Nhập vào tiêu đề phản hồi của bạn"
-              maxLength={200}
-            />
-
-            <TextField
-              label="Nhập phản hồi của bạn"
-              value={message}
-              onChangeText={setMessage}
-              placeholder="Nhập vào phản hồi của bạn"
-              maxLength={1000}
-              multiline
-              containerStyle={styles.message}
-            />
           </View>
         </ScrollView>
-        <View style={styles.footer}>
-          <Button
-            label="Tạo phản hồi"
-            size="lg"
-            loading={submitting}
-            onPress={() => void submit()}
-          />
+
+        <View
+          style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}
+        >
+          <View style={styles.footerInner}>
+            <Button
+              label="Tạo phản hồi"
+              size="lg"
+              loading={submitting}
+              onPress={() => void submit()}
+            />
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -118,21 +129,29 @@ export default function CreateFeedbackScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  scroll: { padding: spacing.md },
-  form: { gap: spacing.md },
-  label: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: spacing.xs,
+  scroll: { paddingVertical: spacing.sm, paddingBottom: spacing.lg },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   message: { minHeight: 240 },
   footer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  footerInner: {
+    maxWidth: 420,
+    width: '100%',
+    alignSelf: 'center',
   },
 });

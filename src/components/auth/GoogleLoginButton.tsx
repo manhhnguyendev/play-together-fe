@@ -6,13 +6,23 @@ import { authService } from '@/api/services/auth';
 import { useToast } from '@/components/ui/Toast';
 import { useContinueAfterSignIn } from '@/features/auth/useContinueAfterSignIn';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, control, fonts, radius, shadow, spacing } from '@/theme';
 
+/**
+ * The "Web application" OAuth client from the Google Cloud project.
+ *
+ * It is the only client ID this app asks for, on every platform. The token Google
+ * hands back is stamped with the client ID that requested it, and the API only
+ * trusts tokens stamped with its own GOOGLE_CLIENT_ID — so requesting through an
+ * Android or iOS client would produce a token the API rejects as an audience
+ * mismatch, even though the sign-in itself succeeded.
+ */
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
-const isConfigured = Boolean(WEB_CLIENT_ID || IOS_CLIENT_ID || ANDROID_CLIENT_ID);
+/** Google brand blue, used for the mark on a light button. */
+const GOOGLE_BLUE = '#4285F4';
+
+const isConfigured = Boolean(WEB_CLIENT_ID);
 
 export function GoogleLoginButton() {
   const toast = useToast();
@@ -20,9 +30,11 @@ export function GoogleLoginButton() {
   if (!isConfigured) {
     return (
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Đăng nhập bằng Google"
         onPress={() =>
           toast.show(
-            'Chưa cấu hình Google Client ID. Thêm EXPO_PUBLIC_GOOGLE_*_CLIENT_ID vào .env.',
+            'Chưa cấu hình Google. Thêm EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID vào .env của app và GOOGLE_CLIENT_ID vào .env của API.',
             'error',
           )
         }
@@ -44,9 +56,9 @@ function ConfiguredGoogleButton() {
   const [loading, setLoading] = useState(false);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: WEB_CLIENT_ID ?? IOS_CLIENT_ID ?? ANDROID_CLIENT_ID,
-    iosClientId: IOS_CLIENT_ID,
-    androidClientId: ANDROID_CLIENT_ID,
+    // No iosClientId/androidClientId: see WEB_CLIENT_ID. `clientId` is what the
+    // hook falls back to on the platforms where its own key is missing.
+    clientId: WEB_CLIENT_ID,
     webClientId: WEB_CLIENT_ID,
   });
 
@@ -96,6 +108,9 @@ function ConfiguredGoogleButton() {
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Đăng nhập bằng Google"
+      accessibilityState={{ disabled: !request || loading, busy: loading }}
       disabled={!request || loading}
       onPress={() => {
         if (Platform.OS === 'android') {
@@ -119,35 +134,38 @@ function ConfiguredGoogleButton() {
 function GoogleMark() {
   return (
     <View style={styles.mark}>
-      <FontAwesome name="google" size={18} color={colors.white} />
+      <FontAwesome name="google" size={17} color={GOOGLE_BLUE} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    height: 52,
-    borderRadius: radius.sm,
-    backgroundColor: '#DB4432',
+    minHeight: control.buttonMd,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
+    ...shadow.card,
   },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: 0.75, backgroundColor: colors.surfaceMuted },
   mark: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
     fontFamily: fonts.semibold,
     fontSize: 14,
-    letterSpacing: 0.3,
-    color: colors.white,
+    letterSpacing: 0.2,
+    color: colors.text,
   },
 });

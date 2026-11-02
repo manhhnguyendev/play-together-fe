@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Pressable,
@@ -18,9 +17,11 @@ import {
   useDiscoveryFilter,
   type DiscoveryFilters,
 } from '@/features/discovery/filterStore';
+import { useAppRouter } from '@/hooks/useAppRouter';
 import { formatNumber, parseAmount } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { colors, control, fonts, radius, spacing, touchTarget } from '@/theme';
 
 const SORT_OPTIONS = [
   { value: 1, label: 'Sở thích', icon: 'heart' },
@@ -49,9 +50,10 @@ const MAX_PRICE = 5000000;
 const INITIALS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export default function FilterScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const applyFilters = useDiscoveryFilter((state) => state.apply);
   const storedFilters = useDiscoveryFilter((state) => state.filters);
+  const { gutter, contentStyle, itemWidth } = useResponsive();
 
   const [draft, setDraft] = useState<DiscoveryFilters>(storedFilters);
   const [startPriceText, setStartPriceText] = useState(
@@ -105,7 +107,7 @@ export default function FilterScreen() {
       <AppBar title="Bộ lọc" />
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }, contentStyle]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -167,6 +169,9 @@ export default function FilterScreen() {
             return (
               <Pressable
                 key={letter}
+                accessibilityRole="button"
+                accessibilityLabel={`Chữ cái ${letter}`}
+                accessibilityState={{ selected }}
                 onPress={() =>
                   setDraft((current) => ({
                     ...current,
@@ -230,6 +235,7 @@ export default function FilterScreen() {
           {PRICE_PRESETS.map((preset) => (
             <Pressable
               key={preset.label}
+              accessibilityRole="button"
               onPress={() => applyPreset(preset.start, preset.end)}
               style={({ pressed }) => [
                 styles.preset,
@@ -265,10 +271,24 @@ export default function FilterScreen() {
         <SectionLabel>Chọn các tựa game bạn muốn tìm</SectionLabel>
         {gamesQuery.isLoading ? (
           <LoadingView label="Đang tải danh sách game..." />
+        ) : gamesQuery.isError && (gamesQuery.data ?? []).length === 0 ? (
+          <View style={styles.gamesError}>
+            <Text style={styles.gamesErrorText}>
+              Không tải được danh sách game. Bạn vẫn có thể áp dụng các bộ lọc
+              khác.
+            </Text>
+            <Button
+              label="Thử lại"
+              variant="outline"
+              size="sm"
+              fullWidth={false}
+              onPress={() => void gamesQuery.refetch()}
+            />
+          </View>
         ) : (
           <View style={styles.gamesGrid}>
             {(gamesQuery.data ?? []).map((game) => (
-              <View key={game.id} style={styles.gameItem}>
+              <View key={game.id} style={{ width: itemWidth(168, spacing.xs) }}>
                 <Checkbox
                   checked={draft.gameIds.includes(game.id)}
                   label={game.displayName || game.name || game.otherName}
@@ -281,11 +301,13 @@ export default function FilterScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View style={styles.footerButton}>
-          <Button label="Đặt lại" variant="outline" onPress={reset} />
-        </View>
-        <View style={styles.footerButton}>
-          <Button label="Áp dụng" onPress={apply} />
+        <View style={[styles.footerRow, { paddingHorizontal: gutter }, contentStyle]}>
+          <View style={styles.footerButton}>
+            <Button label="Đặt lại" variant="outline" onPress={reset} />
+          </View>
+          <View style={styles.footerButton}>
+            <Button label="Áp dụng" onPress={apply} />
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -314,6 +336,9 @@ function RadioRow({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: selected }}
       style={({ pressed }) => [styles.radioRow, pressed && { opacity: 0.7 }]}
     >
       <View style={styles.radioLabelWrap}>
@@ -321,7 +346,7 @@ function RadioRow({
           <Ionicons
             name={icon}
             size={16}
-            color={selected ? colors.primaryDark : colors.textMuted}
+            color={selected ? colors.primaryAction : colors.textMuted}
           />
         ) : null}
         <Text style={[styles.radioLabel, selected && styles.radioLabelActive]}>
@@ -336,8 +361,12 @@ function RadioRow({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.sm,
+  },
   sectionLabel: {
     fontFamily: fonts.semibold,
     fontSize: 15,
@@ -349,35 +378,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9,
+    gap: spacing.sm,
+    minHeight: touchTarget,
   },
   radioLabelWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     flex: 1,
+    minWidth: 0,
   },
   radioLabel: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
     color: colors.text,
   },
-  radioLabelActive: { fontFamily: fonts.semibold, color: colors.primaryDark },
+  radioLabelActive: { fontFamily: fonts.semibold, color: colors.primaryAction },
   radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioOuterActive: { borderColor: colors.primary },
+  radioOuterActive: { borderColor: colors.primaryAction },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryAction,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -397,25 +428,27 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   letterChip: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
   letterChipActive: {
-    borderColor: colors.primary,
+    borderColor: colors.primaryAction,
     backgroundColor: colors.primaryFaint,
   },
   letterText: {
     fontFamily: fonts.medium,
     fontSize: 13,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   letterTextActive: {
-    color: colors.primaryDark,
+    fontFamily: fonts.bold,
+    color: colors.primaryAction,
   },
   priceRow: {
     flexDirection: 'row',
@@ -425,14 +458,16 @@ const styles = StyleSheet.create({
   },
   priceField: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.sm,
-    height: 46,
+    height: control.inputHeight,
+    backgroundColor: colors.surface,
   },
   priceLabel: {
     fontFamily: fonts.medium,
@@ -441,10 +476,11 @@ const styles = StyleSheet.create({
   },
   priceInput: {
     flex: 1,
+    minWidth: 0,
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
     color: colors.text,
-    paddingVertical: 6,
+    paddingVertical: 0,
   },
   priceUnit: {
     fontFamily: fonts.regular,
@@ -457,10 +493,10 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
   },
   priceHint: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.primaryDark,
-    marginTop: 2,
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.primaryAction,
+    marginTop: spacing.xs,
   },
   presets: {
     flexDirection: 'row',
@@ -469,30 +505,40 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   preset: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    minHeight: 36,
+    justifyContent: 'center',
     borderRadius: radius.pill,
     backgroundColor: colors.primaryFaint,
     borderWidth: 1,
-    borderColor: colors.primarySoft,
+    borderColor: colors.primaryBorder,
   },
   presetText: {
     fontFamily: fonts.medium,
-    fontSize: 11,
-    color: colors.primaryDark,
+    fontSize: 12,
+    color: colors.primaryInk,
   },
   gamesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: spacing.xs,
   },
-  gameItem: { width: '50%', paddingVertical: 2 },
+  gamesError: { gap: spacing.sm },
+  gamesErrorText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.textMuted,
+  },
   footer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
-  footerButton: { flex: 1 },
+  footerRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  footerButton: { flex: 1, maxWidth: 320 },
 });

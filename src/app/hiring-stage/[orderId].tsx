@@ -1,8 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { orderService } from '@/api/services/orders';
 import { OrderParties } from '@/components/orders/OrderParties';
 import { OrderSummary } from '@/components/orders/OrderSummary';
@@ -12,17 +16,18 @@ import {
   orderEndCountdownTarget,
   orderGameNames,
 } from '@/features/orders/status';
-import {
-  formatCountdown,
-  formatDateTimeAmPm,
-} from '@/lib/format';
+import { useAppRouter } from '@/hooks/useAppRouter';
 import { useCountdown } from '@/hooks/useCountdown';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatCountdown, formatDateTime } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function HiringStageScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, type } = useResponsive();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const orderId = typeof params.orderId === 'string' ? params.orderId : '';
   const currentUser = useAuthStore((state) => state.user);
@@ -73,90 +78,154 @@ export default function HiringStageScreen() {
   const left = isHirer ? order.user : order.toUser;
   const right = isHirer ? order.toUser : order.user;
 
+  const sessionSeconds = Math.max(
+    1,
+    (new Date(order.timeFinish).getTime() - new Date(order.timeStart).getTime()) /
+      1000,
+  );
+  const progress = Math.min(1, Math.max(0, 1 - remaining / sessionSeconds));
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Đang thuê..." />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
         showsVerticalScrollIndicator={false}
       >
-        <OrderParties left={left} right={right} />
+        <View style={[styles.column, contentStyle]}>
+          <View style={styles.countdownCard}>
+            <Text style={styles.countdownLabel}>Thời gian còn lại</Text>
+            <Text style={[styles.countdownValue, type.display]}>
+              {formatCountdown(remaining)}
+            </Text>
+            <View style={styles.track}>
+              <View style={[styles.fill, { width: `${progress * 100}%` }]} />
+            </View>
+            <View style={styles.endsRow}>
+              <Ionicons
+                name="flag-outline"
+                size={14}
+                color={colors.textMuted}
+              />
+              <Text style={styles.endsText}>
+                Kết thúc lúc {formatDateTime(order.timeFinish)}
+              </Text>
+            </View>
+          </View>
 
-        <OrderSummary
-          duration={order.totalTimes}
-          priceLabel="Tổng chi phí:"
-          price={order.totalPrices}
-          endLabel="Dự kiến kết thúc:"
-          endValue={formatDateTimeAmPm(order.timeFinish)}
-          games={orderGameNames(order)}
-        />
+          <OrderParties left={left} right={right} />
 
-        <View style={styles.countdownBlock}>
-          <Text style={styles.countdownLabel}>Thời gian còn lại:</Text>
-          <Text style={styles.countdownValue}>
-            {formatCountdown(remaining)}
-          </Text>
+          <OrderSummary
+            duration={order.totalTimes}
+            priceLabel="Tổng chi phí:"
+            price={order.totalPrices}
+            endLabel="Dự kiến kết thúc:"
+            endValue={formatDateTime(order.timeFinish)}
+            games={orderGameNames(order)}
+          />
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          label="Kết thúc"
-          variant="danger"
-          fullWidth={false}
-          style={styles.footerButton}
-          onPress={() =>
-            router.push({
-              pathname: '/end-order-early/[orderId]',
-              params: { orderId: order.id },
-            })
-          }
-        />
-        <Button
-          label="Nhắn tin"
-          fullWidth={false}
-          style={styles.footerButton}
-          onPress={() =>
-            router.push({
-              pathname: '/chat/[orderId]',
-              params: { orderId: order.id },
-            })
-          }
-        />
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingHorizontal: gutter,
+            paddingBottom: insets.bottom + spacing.sm,
+          },
+        ]}
+      >
+        <View style={[styles.footerRow, contentStyle]}>
+          <View style={styles.footerButton}>
+            <Button
+              label="Kết thúc"
+              variant="danger"
+              size="md"
+              onPress={() =>
+                router.push({
+                  pathname: '/end-order-early/[orderId]',
+                  params: { orderId: order.id },
+                })
+              }
+            />
+          </View>
+          <View style={styles.footerButton}>
+            <Button
+              label="Nhắn tin"
+              variant="secondary"
+              size="md"
+              onPress={() =>
+                router.push({
+                  pathname: '/chat/[orderId]',
+                  params: { orderId: order.id },
+                })
+              }
+            />
+          </View>
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { paddingBottom: spacing.xl },
-  countdownBlock: {
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm, gap: spacing.sm },
+  column: { gap: spacing.sm },
+  countdownCard: {
     alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    marginTop: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primaryFaint,
   },
   countdownLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: colors.primaryAction,
   },
   countdownValue: {
     fontFamily: fonts.bold,
-    fontSize: 40,
-    color: colors.text,
+    color: colors.primaryInk,
+    letterSpacing: 0.5,
+  },
+  track: {
+    alignSelf: 'stretch',
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryBorder,
+    overflow: 'hidden',
+    marginTop: spacing.xs,
+  },
+  fill: {
+    height: '100%',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryAction,
+  },
+  endsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xxs,
+  },
+  endsText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   footer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
-  footerButton: { flex: 1 },
+  footerRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  footerButton: { flex: 1, minWidth: 0 },
 });

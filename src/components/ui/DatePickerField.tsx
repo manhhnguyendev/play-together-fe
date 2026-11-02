@@ -9,7 +9,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, control, fonts, hitSlop, radius, spacing } from '@/theme';
+import {
+  FLOAT_BOX_HEIGHT,
+  FLOAT_ICON_SLOT,
+  FLOAT_BAND_STYLE,
+  FLOAT_LABEL_TOP,
+  FLOAT_TEXT_LINE,
+  FLOAT_TEXT_TOP,
+} from './floatingMetrics';
 
 interface DatePickerFieldProps {
   label?: string;
@@ -19,6 +27,8 @@ interface DatePickerFieldProps {
   error?: string | null;
   minimumYear?: number;
   maximumYear?: number;
+  /** 'floating' matches TextField's floating variant: filled box, label inside. */
+  variant?: 'outline' | 'floating';
 }
 
 const pad = (value: number) => value.toString().padStart(2, '0');
@@ -34,8 +44,10 @@ export function DatePickerField({
   error,
   minimumYear,
   maximumYear,
+  variant = 'outline',
 }: DatePickerFieldProps) {
   const today = useMemo(() => new Date(), []);
+  const floating = variant === 'floating';
   const firstYear = minimumYear ?? today.getFullYear() - 100;
   const lastYear = maximumYear ?? today.getFullYear();
 
@@ -78,19 +90,54 @@ export function DatePickerField({
 
   return (
     <View>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label && !floating ? <Text style={styles.label}>{label}</Text> : null}
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label ? `${label}: chọn ngày` : 'Chọn ngày'}
         onPress={openPicker}
         style={({ pressed }) => [
-          styles.field,
-          error && styles.fieldError,
+          floating ? styles.floatingBox : styles.field,
+          error && !floating && styles.fieldError,
+          error && floating && styles.floatingBoxError,
           pressed && styles.pressed,
         ]}
       >
-        <Text style={[styles.value, !display && styles.placeholder]}>
-          {display ?? placeholder}
-        </Text>
-        <Ionicons name="calendar-outline" size={19} color={colors.textMuted} />
+        {floating ? (
+          <>
+            <Text
+              style={[styles.floatingValue, !display && styles.floatingValueHint]}
+              numberOfLines={1}
+            >
+              {display ?? placeholder}
+            </Text>
+            <Ionicons
+              name="calendar-outline"
+              size={FLOAT_ICON_SLOT}
+              color={display ? colors.primaryAction : colors.textFaint}
+              style={styles.floatingIcon}
+            />
+            {display ? (
+              <Text
+                pointerEvents="none"
+                style={[styles.floatingLabel, error && styles.floatingLabelError]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text style={[styles.value, !display && styles.placeholder]}>
+              {display ?? placeholder}
+            </Text>
+            <Ionicons
+              name="calendar-outline"
+              size={FLOAT_ICON_SLOT}
+              color={colors.textMuted}
+            />
+          </>
+        )}
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -101,14 +148,29 @@ export function DatePickerField({
         onRequestClose={() => setOpen(false)}
       >
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đóng"
+            style={styles.backdrop}
+            onPress={() => setOpen(false)}
+          />
           <SafeAreaView style={styles.sheet} edges={['bottom']}>
             <View style={styles.sheetHeader}>
-              <Pressable hitSlop={10} onPress={() => setOpen(false)}>
+              <Pressable
+                hitSlop={hitSlop.md}
+                accessibilityRole="button"
+                accessibilityLabel="Huỷ chọn ngày"
+                onPress={() => setOpen(false)}
+              >
                 <Text style={styles.cancel}>Huỷ</Text>
               </Pressable>
               <Text style={styles.sheetTitle}>{label ?? 'Chọn ngày'}</Text>
-              <Pressable hitSlop={10} onPress={confirm}>
+              <Pressable
+                hitSlop={hitSlop.md}
+                accessibilityRole="button"
+                accessibilityLabel="Xác nhận ngày đã chọn"
+                onPress={confirm}
+              >
                 <Text style={styles.done}>Xong</Text>
               </Pressable>
             </View>
@@ -122,6 +184,9 @@ export function DatePickerField({
                 {days.map((item) => (
                   <Pressable
                     key={item}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ngày ${item}`}
+                    accessibilityState={{ selected: item === day }}
                     onPress={() => setDay(item)}
                     style={[styles.cell, item === day && styles.cellActive]}
                   >
@@ -145,6 +210,9 @@ export function DatePickerField({
                 {Array.from({ length: 12 }, (_, index) => index + 1).map((item) => (
                   <Pressable
                     key={item}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Tháng ${item}`}
+                    accessibilityState={{ selected: item === month }}
                     onPress={() => setMonth(item)}
                     style={[styles.cell, item === month && styles.cellActive]}
                   >
@@ -168,6 +236,9 @@ export function DatePickerField({
                 {years.map((item) => (
                   <Pressable
                     key={item}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Năm ${item}`}
+                    accessibilityState={{ selected: item === year }}
                     onPress={() => setYear(item)}
                     style={[styles.cell, item === year && styles.cellActive]}
                   >
@@ -193,16 +264,17 @@ export function DatePickerField({
 const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 6,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+    marginBottom: spacing.xxs + 2,
     letterSpacing: 0.2,
   },
   field: {
-    minHeight: 50,
+    minHeight: control.inputHeight,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.sm,
     flexDirection: 'row',
@@ -210,19 +282,62 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   fieldError: { borderColor: colors.danger },
+  floatingBox: {
+    height: FLOAT_BOX_HEIGHT,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+  },
+  floatingBoxError: {
+    borderColor: colors.danger,
+    borderWidth: 1.5,
+    backgroundColor: colors.dangerSoft,
+  },
+  floatingLabel: {
+    position: 'absolute',
+    top: FLOAT_LABEL_TOP,
+    left: spacing.sm,
+    right: spacing.md,
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.3,
+    color: colors.primaryAction,
+  },
+  floatingLabelError: { color: colors.danger },
+  floatingValue: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.text,
+    paddingTop: FLOAT_TEXT_TOP,
+    paddingBottom: FLOAT_BOX_HEIGHT - FLOAT_TEXT_TOP - FLOAT_TEXT_LINE,
+  },
+  floatingValueHint: { color: colors.textMuted },
+  floatingIcon: FLOAT_BAND_STYLE,
   pressed: { opacity: 0.75 },
   value: {
     flex: 1,
+    minWidth: 0,
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.text,
   },
   placeholder: { color: colors.textFaint },
   error: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 17,
     color: colors.danger,
-    marginTop: 4,
+    marginTop: spacing.xxs,
   },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: {
@@ -261,7 +376,7 @@ const styles = StyleSheet.create({
   done: {
     fontFamily: fonts.semibold,
     fontSize: 14,
-    color: colors.primaryDark,
+    color: colors.primaryAction,
   },
   columns: {
     flexDirection: 'row',
@@ -295,6 +410,6 @@ const styles = StyleSheet.create({
   },
   cellTextActive: {
     fontFamily: fonts.semibold,
-    color: colors.primaryDark,
+    color: colors.primaryInk,
   },
 });

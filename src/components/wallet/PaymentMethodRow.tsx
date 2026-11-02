@@ -17,12 +17,21 @@ export function PaymentMethodRow({
 }: PaymentMethodRowProps) {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={onPress ? 'Mở phương thức này' : undefined}
+      accessibilityState={{ disabled: !onPress }}
       onPress={onPress}
       disabled={!onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <View style={styles.logoBox}>
-        <Image source={image} style={styles.logo} contentFit="contain" />
+        <Image
+          source={image}
+          style={styles.logo}
+          contentFit="contain"
+          accessibilityLabel={title}
+        />
       </View>
       <View style={styles.body}>
         <Text style={styles.title}>{title}</Text>

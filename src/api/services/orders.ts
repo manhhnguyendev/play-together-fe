@@ -87,13 +87,15 @@ export const orderService = {
           hours: body.totalTimes,
           message: body.message,
           gameIds: body.games.map((game) => game.gameId),
+          ...(body.startsAt ? { startsAt: body.startsAt } : {}),
         }),
       ),
     ),
 
   cancel: async (orderId: string, body: CancelOrderModel) => {
-    void body;
-    await apiPost<OrderView>(`${API_URL.orders}/${orderId}/cancel`);
+    await apiPost<OrderView>(`${API_URL.orders}/${orderId}/cancel`, {
+      reason: body.reason,
+    });
   },
 
   accept: async (orderId: string, body: AcceptOrderModel) => {

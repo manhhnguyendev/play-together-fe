@@ -1,6 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   FlatList,
@@ -19,18 +17,20 @@ import {
   EmptyState,
   ErrorView,
   LoadingView,
+  ScreenHeader,
 } from '@/components/ui';
-import { secondsBetween } from '@/lib/format';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
+import { openOrderById } from '@/navigation/deepLink';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, control, fonts, radius, spacing } from '@/theme';
 
 type HistoryTab = 'created' | 'received';
 
-const THREE_HOURS = 3 * 60 * 60;
-
 export default function HistoryScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
+  const { gutter, contentStyle } = useResponsive();
   const currentUser = useAuthStore((state) => state.user);
   const [tab, setTab] = useState<HistoryTab>('created');
   const [pageSize, setPageSize] = useState(10);
@@ -57,45 +57,11 @@ export default function HistoryScreen() {
     setPageSize(10);
   };
 
-  const openOrder = async (order: OrderModel) => {
-    try {
-      const detail = (await orderService.getDetailById(order.id)).content;
-      const hasFeedback =
-        (detail.ratings ?? []).length > 0 || (detail.reports ?? []).length > 0;
-      if (!hasFeedback) {
-        const fullOrder = (await orderService.getById(order.id)).content;
-        const secondsToFinish = secondsBetween(
-          new Date().toISOString(),
-          fullOrder.timeFinish,
-        );
-        if (secondsToFinish >= -THREE_HOURS) {
-          router.push({
-            pathname: '/end-order/[orderId]',
-            params: { orderId: order.id },
-          });
-          return;
-        }
-      }
-    } catch {
-      // Fall through to the read-only detail screen.
-    }
-    router.push({
-      pathname: '/history/[orderId]',
-      params: { orderId: order.id },
-    });
-  };
+  const openOrder = (order: OrderModel) => openOrderById(order.id, router);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={styles.appBar}>
-        <Image
-          source={require('../../../assets/images/play_together_logo_no_text.png')}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <Text style={styles.title}>Lịch sử hoạt động</Text>
-        <View style={styles.logoSpacer} />
-      </View>
+      <ScreenHeader title="Lịch sử hoạt động" subtitle="Đơn đã và đang diễn ra" />
 
       <View style={styles.tabs}>
         <TabButton
@@ -118,15 +84,16 @@ export default function HistoryScreen() {
         <FlatList
           data={orders}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          style={contentStyle}
+          contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
           refreshControl={
             <RefreshControl
               refreshing={ordersQuery.isRefetching}
               onRefresh={() => {
                 void ordersQuery.refetch();
               }}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
+              tintColor={colors.primaryAction}
+              colors={[colors.primaryAction]}
             />
           }
           renderItem={({ item }) => (
@@ -179,6 +146,8 @@ function TabButton({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
       style={({ pressed }) => [styles.tab, pressed && { opacity: 0.7 }]}
     >
       <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
@@ -190,57 +159,43 @@ function TabButton({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  appBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: spacing.sm,
-  },
-  logo: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.white,
-  },
-  logoSpacer: { width: 44 },
-  title: {
-    flex: 1,
-    textAlign: 'center',
-    fontFamily: fonts.semibold,
-    fontSize: 19,
-    color: colors.text,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
   tabs: {
     flexDirection: 'row',
+    backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: control.buttonSm,
     paddingTop: spacing.xs,
   },
   tabLabel: {
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     fontSize: 15,
     color: colors.textMuted,
     paddingBottom: spacing.xs,
   },
   tabLabelActive: {
-    fontFamily: fonts.semibold,
-    color: colors.text,
+    fontFamily: fonts.bold,
+    color: colors.primaryAction,
   },
   tabIndicator: {
-    height: 2,
-    width: '60%',
+    position: 'absolute',
+    bottom: 0,
+    height: 3,
+    width: '46%',
+    borderTopLeftRadius: radius.xs,
+    borderBottomLeftRadius: radius.xs,
     backgroundColor: 'transparent',
   },
-  tabIndicatorActive: { backgroundColor: colors.primary },
+  tabIndicatorActive: { backgroundColor: colors.primaryAction },
   list: {
     flexGrow: 1,
-    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xxl,
   },
   footer: { paddingVertical: spacing.md },

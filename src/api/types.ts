@@ -285,6 +285,14 @@ export interface OrderModel {
   timeFinish: string;
   processExpired: string;
   percentSub: number;
+  /** When the payout of a finished session is released if nobody objects. */
+  disputeDeadlineAt: string | null;
+  /**
+   * Whether this participant may still rate the session. The server owns the
+   * rule (a played-out session, inside the window, not rated twice); a
+   * cancelled or rejected order is never rateable.
+   */
+  canRate: boolean;
 }
 
 export interface OrderDetailModel extends OrderModel {
@@ -296,6 +304,8 @@ export interface CreateOrderModel {
   totalTimes: number;
   message: string;
   games: GameOrderModel[];
+  /** Omit to hire now; set to book the session inside the player's published hours. */
+  startsAt?: string | null;
 }
 
 export interface GameOrderModel {
@@ -396,6 +406,8 @@ export interface NotificationModel {
   body: string;
   createdDate: string;
   status: string;
+  /** Resource path from the API (`/orders/:id`); mapped to a screen on tap. */
+  referenceUrl: string | null;
 }
 
 export interface ChatModel {

@@ -9,7 +9,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, control, fonts, hitSlop, radius, shadow, spacing } from '@/theme';
+import {
+  FLOAT_BOX_HEIGHT,
+  FLOAT_ICON_SLOT,
+  FLOAT_BAND_STYLE,
+  FLOAT_LABEL_TOP,
+  FLOAT_TEXT_LINE,
+  FLOAT_TEXT_TOP,
+} from './floatingMetrics';
 
 interface SelectOption {
   label: string;
@@ -23,6 +31,8 @@ interface SelectFieldProps {
   options: SelectOption[];
   onChange: (value: string) => void;
   error?: string | null;
+  /** 'floating' matches TextField's floating variant: filled box, label inside. */
+  variant?: 'outline' | 'floating';
 }
 
 export function SelectField({
@@ -32,8 +42,10 @@ export function SelectField({
   options,
   onChange,
   error,
+  variant = 'outline',
 }: SelectFieldProps) {
   const [open, setOpen] = useState(false);
+  const floating = variant === 'floating';
 
   const selectedLabel = useMemo(
     () => options.find((option) => option.value === value)?.label,
@@ -42,22 +54,65 @@ export function SelectField({
 
   return (
     <View>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label && !floating ? <Text style={styles.label}>{label}</Text> : null}
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label ?? placeholder}
+        accessibilityHint="Mở danh sách lựa chọn"
+        accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
         style={({ pressed }) => [
-          styles.field,
-          error && styles.fieldError,
+          floating ? styles.floatingBox : styles.field,
+          floating && error ? styles.floatingBoxError : undefined,
+          {
+            borderColor: error
+              ? colors.danger
+              : pressed && !floating
+                ? colors.primaryAction
+                : colors.border,
+          },
           pressed && styles.pressed,
         ]}
       >
-        <Text
-          style={[styles.value, !selectedLabel && styles.placeholder]}
-          numberOfLines={1}
-        >
-          {selectedLabel ?? placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+        {floating ? (
+          <>
+            <Text
+              style={[styles.floatingValue, !selectedLabel && styles.floatingValueHint]}
+              numberOfLines={1}
+            >
+              {selectedLabel ?? placeholder}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={FLOAT_ICON_SLOT}
+              color={selectedLabel ? colors.primaryAction : colors.textFaint}
+              style={styles.floatingChevron}
+            />
+            {selectedLabel ? (
+              <Text
+                pointerEvents="none"
+                style={[styles.floatingLabel, error && styles.floatingLabelError]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text
+              style={[styles.value, !selectedLabel && styles.placeholder]}
+              numberOfLines={1}
+            >
+              {selectedLabel ?? placeholder}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={18}
+              color={selectedLabel ? colors.primaryAction : colors.textMuted}
+            />
+          </>
+        )}
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -68,12 +123,24 @@ export function SelectField({
         onRequestClose={() => setOpen(false)}
       >
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đóng"
+            style={styles.backdrop}
+            onPress={() => setOpen(false)}
+          />
           <SafeAreaView style={styles.sheet} edges={['bottom']}>
+            <View style={styles.handle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{label ?? placeholder}</Text>
-              <Pressable hitSlop={10} onPress={() => setOpen(false)}>
-                <Ionicons name="close" size={22} color={colors.text} />
+              <Pressable
+                hitSlop={hitSlop.md}
+                accessibilityRole="button"
+                accessibilityLabel="Đóng"
+                onPress={() => setOpen(false)}
+                style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+              >
+                <Ionicons name="close" size={20} color={colors.text} />
               </Pressable>
             </View>
             <FlatList
@@ -81,10 +148,14 @@ export function SelectField({
               keyExtractor={(item) => item.value}
               initialNumToRender={20}
               keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.listContent}
               renderItem={({ item }) => {
                 const active = item.value === value;
                 return (
                   <Pressable
+                    accessibilityRole="menuitem"
+                    accessibilityLabel={item.label}
+                    accessibilityState={{ selected: active }}
                     onPress={() => {
                       onChange(item.value);
                       setOpen(false);
@@ -97,11 +168,16 @@ export function SelectField({
                   >
                     <Text
                       style={[styles.optionLabel, active && styles.optionLabelActive]}
+                      numberOfLines={1}
                     >
                       {item.label}
                     </Text>
                     {active ? (
-                      <Ionicons name="checkmark" size={20} color={colors.primary} />
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={22}
+                        color={colors.primaryAction}
+                      />
                     ) : null}
                   </Pressable>
                 );
@@ -117,36 +193,76 @@ export function SelectField({
 const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 6,
-    letterSpacing: 0.2,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+    marginBottom: spacing.xxs + 2,
   },
   field: {
-    minHeight: 50,
+    minHeight: control.inputHeight,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
-  fieldError: { borderColor: colors.danger },
   pressed: { opacity: 0.75 },
+  floatingBox: {
+    height: FLOAT_BOX_HEIGHT,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+  },
+  floatingValue: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.text,
+    paddingTop: FLOAT_TEXT_TOP,
+    paddingBottom: FLOAT_BOX_HEIGHT - FLOAT_TEXT_TOP - FLOAT_TEXT_LINE,
+  },
+  floatingValueHint: { color: colors.textMuted },
+  floatingBoxError: {
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1.5,
+  },
+  floatingChevron: FLOAT_BAND_STYLE,
+  floatingLabel: {
+    position: 'absolute',
+    top: FLOAT_LABEL_TOP,
+    left: spacing.sm,
+    right: spacing.md,
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.3,
+    color: colors.primaryAction,
+  },
+  floatingLabelError: { color: colors.danger },
   value: {
     flex: 1,
+    minWidth: 0,
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.text,
   },
   placeholder: { color: colors.textFaint },
   error: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 17,
     color: colors.danger,
-    marginTop: 4,
+    marginTop: spacing.xxs,
   },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: {
@@ -158,40 +274,68 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlay,
   },
   sheet: {
-    maxHeight: '72%',
+    maxHeight: '76%',
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    ...shadow.sheet,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+    marginTop: spacing.sm,
   },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   sheetTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 16,
+    flex: 1,
+    minWidth: 0,
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    lineHeight: 23,
     color: colors.text,
+    letterSpacing: -0.2,
   },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listContent: { paddingBottom: spacing.lg },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
+    minHeight: 52,
+    paddingVertical: spacing.sm,
   },
   optionActive: { backgroundColor: colors.primaryFaint },
   optionLabel: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.text,
   },
   optionLabelActive: {
-    fontFamily: fonts.medium,
-    color: colors.primaryDark,
+    fontFamily: fonts.semibold,
+    color: colors.primaryInk,
   },
 });

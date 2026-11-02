@@ -1,9 +1,9 @@
-import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { hobbyService } from '@/api/services/catalog';
+import { useAppRouter } from '@/hooks/useAppRouter';
 
 export function useContinueAfterSignIn() {
-  const router = useRouter();
+  const router = useAppRouter();
 
   return useCallback(
     async (userId: string) => {

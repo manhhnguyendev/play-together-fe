@@ -1,11 +1,23 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { datingService } from '@/api/services/catalog';
 import { AppBar, Button, useToast } from '@/components/ui';
 import { TimeRangeFields } from '@/components/hours/TimeRangeFields';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import {
   isValidTimeRange,
   toMinuteOfDay,
@@ -13,14 +25,16 @@ import {
 } from '@/features/hours/time';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 const pad = (value: number) => value.toString().padStart(2, '0');
 
 export default function UpdateHourScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, type } = useResponsive();
   const userId = useAuthStore((state) => state.user?.id ?? '');
   const params = useLocalSearchParams<{
     id?: string;
@@ -91,51 +105,86 @@ export default function UpdateHourScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Chỉnh sửa giờ online" />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text style={styles.dayLabel}>{dayLabel}:</Text>
-        <TimeRangeFields
-          fromHour={fromHour}
-          fromMinute={fromMinute}
-          toHour={toHour}
-          toMinute={toMinute}
-          onChange={(part, value) => {
-            if (part === 'fromHour') setFromHour(value);
-            if (part === 'fromMinute') setFromMinute(value);
-            if (part === 'toHour') setToHour(value);
-            if (part === 'toMinute') setToMinute(value);
-          }}
-        />
-      </ScrollView>
+        <ScrollView
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.statusCard}>
+            <Text style={[styles.dayLabel, type.title3]}>{dayLabel}:</Text>
+          </View>
 
-      <View style={styles.footer}>
-        <Button
-          label="Cập nhật"
-          onPress={() => void submit()}
-          loading={submitting}
-        />
-      </View>
+          <View style={styles.card}>
+            <TimeRangeFields
+              fromHour={fromHour}
+              fromMinute={fromMinute}
+              toHour={toHour}
+              toMinute={toMinute}
+              onChange={(part, value) => {
+                if (part === 'fromHour') setFromHour(value);
+                if (part === 'fromMinute') setFromMinute(value);
+                if (part === 'toHour') setToHour(value);
+                if (part === 'toMinute') setToMinute(value);
+              }}
+            />
+          </View>
+        </ScrollView>
+
+        <View
+          style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}
+        >
+          <View style={styles.footerInner}>
+            <Button
+              label="Cập nhật"
+              size="lg"
+              onPress={() => void submit()}
+              loading={submitting}
+            />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   scroll: {
-    padding: spacing.md,
-    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
   },
-  dayLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 17,
-    color: colors.text,
+  statusCard: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primaryFaint,
+    paddingHorizontal: spacing.md,
+  },
+  dayLabel: { color: colors.primaryInk, textAlign: 'center' },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   footer: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  footerInner: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

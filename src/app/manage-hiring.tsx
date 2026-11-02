@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Pressable,
@@ -18,22 +17,27 @@ import {
   Button,
   Chip,
   ErrorView,
+  FLOAT_BAND_STYLE,
   LoadingView,
+  SectionHeader,
   TextField,
   useToast,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { formatMinuteOfDay, groupByDay, WEEK_DAYS } from '@/features/hours/time';
 import { formatNumber, parseAmount } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing, touchTarget } from '@/theme';
 
 const MAX_HOUR_OPTIONS = [1, 2, 3, 4, 5];
 
 export default function ManageHiringScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { gutter, contentStyle } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const refreshUser = useAuthStore((state) => state.refreshUser);
   const userId = user?.id ?? '';
@@ -98,12 +102,24 @@ export default function ManageHiringScreen() {
     updateDraft({ isPlayer: value });
     try {
       await userService.updateIsPlayer({ isPlayer: value });
-      await refreshUser();
-      toast.show('Cập nhật trạng thái thành công', 'success');
-    } catch {
+    } catch (error) {
       updateDraft({ isPlayer: previous });
-      toast.show('Cập nhật trạng thái thất bại', 'error');
+      toast.show(
+        error instanceof Error ? error.message : 'Cập nhật trạng thái thất bại',
+        'error',
+      );
+      return;
     }
+
+    // Only the PATCH decides success: a failed profile refresh must not roll the
+    // switch back and make a saved change look like it was never made.
+    await Promise.all([
+      refreshUser().catch(() => undefined),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.userService(userId),
+      }),
+    ]);
+    toast.show(value ? 'Đang nhận yêu cầu thuê' : 'Đã ngừng nhận yêu cầu thuê', 'success');
   };
 
   const submitService = async () => {
@@ -130,8 +146,11 @@ export default function ManageHiringScreen() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.userService(userId),
       });
-    } catch {
-      toast.show('Cập nhật thất bại', 'error');
+    } catch (error) {
+      toast.show(
+        error instanceof Error ? error.message : 'Cập nhật thất bại',
+        'error',
+      );
     }
   };
 
@@ -168,235 +187,294 @@ export default function ManageHiringScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Quản lý nhận thuê" />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.status, isPlayer ? styles.online : styles.offline]}>
-          {isPlayer
-            ? 'Sẵn sàng nhận yêu cầu thuê'
-            : 'Ngừng nhận yêu cầu thuê'}
-        </Text>
-
-        <View style={styles.row}>
-          <Text style={styles.rowTitle}>Nhận yêu cầu thuê</Text>
-          <Switch
-            value={isPlayer}
-            onValueChange={(value) => void togglePlayer(value)}
-            trackColor={{ true: colors.primary, false: colors.border }}
-            thumbColor={colors.white}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.rowTitle}>Số giờ tối đa</Text>
-          <View style={styles.hourOptions}>
-            {MAX_HOUR_OPTIONS.map((hour) => (
-              <Chip
-                key={hour}
-                label={String(hour)}
-                selected={maxHourHire === hour}
-                onPress={() => updateDraft({ maxHourHire: hour })}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.rowTitle}>Chi phí mỗi giờ</Text>
-          <View style={styles.priceInput}>
-            <TextField
-              value={priceText}
-              onChangeText={(value) =>
-                updateDraft({
-                  priceText: parseAmount(value)
-                    ? formatNumber(parseAmount(value))
-                    : '',
-                })
-              }
-              keyboardType="number-pad"
-              placeholder="10.000"
-              maxLength={11}
+        <View style={[styles.column, contentStyle]}>
+          <View
+            style={[
+              styles.statusCard,
+              isPlayer ? styles.statusCardOn : styles.statusCardOff,
+            ]}
+          >
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isPlayer ? colors.success : colors.textFaint },
+              ]}
             />
-          </View>
-          <Text style={styles.unit}>đ</Text>
-        </View>
-
-        <Button
-          label="Cập nhật"
-          onPress={() => void onUpdatePress()}
-          loading={updatingService}
-          fullWidth={false}
-          style={styles.updateButton}
-        />
-
-        <View style={styles.divider} />
-
-        <Pressable
-          onPress={() => router.push('/update-skills')}
-          style={({ pressed }) => [styles.sectionHeader, pressed && styles.pressed]}
-        >
-          <Text style={styles.rowTitle}>Kỹ năng</Text>
-          <View style={styles.linkRow}>
-            <Text style={styles.link}>Chỉnh sửa kỹ năng</Text>
-            <Ionicons name="chevron-forward" size={15} color={colors.grey} />
-          </View>
-        </Pressable>
-
-        {games.length === 0 ? (
-          <Text style={styles.empty}>Không có dữ liệu</Text>
-        ) : (
-          games.map((item) => (
-            <Text key={item.id} style={styles.gameLine}>
-              {item.game?.name}
-              {item.rankId !== 'None' && item.rank ? ` : ${item.rank.name}` : ''}
+            <Text
+              style={[
+                styles.status,
+                { color: isPlayer ? colors.success : colors.textSecondary },
+              ]}
+            >
+              {isPlayer ? 'Sẵn sàng nhận yêu cầu thuê' : 'Ngừng nhận yêu cầu thuê'}
             </Text>
-          ))
-        )}
-
-        <View style={styles.divider} />
-
-        <Pressable
-          onPress={() => router.push('/update-hours')}
-          style={({ pressed }) => [styles.sectionHeader, pressed && styles.pressed]}
-        >
-          <Text style={styles.rowTitle}>Giờ online</Text>
-          <View style={styles.linkRow}>
-            <Text style={styles.link}>Chỉnh sửa giờ</Text>
-            <Ionicons name="chevron-forward" size={15} color={colors.grey} />
           </View>
-        </Pressable>
 
-        {WEEK_DAYS.map((day) => {
-          const items = datingsByDay[day.day] ?? [];
-          return (
-            <View key={day.day} style={styles.dayRow}>
-              <Text style={styles.dayLabel}>{day.label}:</Text>
-              {items.length === 0 ? (
-                <Text style={styles.dayEmpty}>Không có dữ liệu</Text>
-              ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.hourChips}
-                >
-                  {items.map((item) => (
-                    <Text key={item.id} style={styles.hourText}>
-                      {formatMinuteOfDay(item.fromHour)} -{' '}
-                      {formatMinuteOfDay(item.toHour)}
-                    </Text>
-                  ))}
-                </ScrollView>
-              )}
+          <View style={styles.card}>
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              accessibilityRole="switch"
+              accessibilityLabel={isPlayer ? 'Tắt nhận yêu cầu thuê' : 'Bật nhận yêu cầu thuê'}
+              accessibilityState={{ checked: isPlayer }}
+              onPress={() => void togglePlayer(!isPlayer)}
+            >
+              <Text style={styles.rowTitle}>Nhận yêu cầu thuê</Text>
+              <Switch
+                value={isPlayer}
+                accessibilityRole="switch"
+                accessibilityLabel="Nhận yêu cầu thuê"
+                accessibilityState={{ checked: isPlayer }}
+                onValueChange={(value) => void togglePlayer(value)}
+                trackColor={{ true: colors.primaryFill, false: colors.borderStrong }}
+                thumbColor={colors.white}
+                ios_backgroundColor={colors.borderStrong}
+              />
+            </Pressable>
+            <View style={styles.divider} />
+
+            <View style={styles.choiceRow}>
+              <Text style={styles.rowTitle}>Số giờ tối đa</Text>
+              <View style={styles.hourOptions}>
+                {MAX_HOUR_OPTIONS.map((hour) => (
+                  <Chip
+                    key={hour}
+                    label={String(hour)}
+                    selected={maxHourHire === hour}
+                    onPress={() => updateDraft({ maxHourHire: hour })}
+                  />
+                ))}
+              </View>
             </View>
-          );
-        })}
+            <View style={styles.divider} />
+
+            <View style={styles.priceRow}>
+              <View style={styles.priceInput}>
+                <TextField
+                  variant="floating"
+                  label="Chi phí mỗi giờ"
+                  value={priceText}
+                  onChangeText={(value) =>
+                    updateDraft({
+                      priceText: parseAmount(value)
+                        ? formatNumber(parseAmount(value))
+                        : '',
+                    })
+                  }
+                  keyboardType="number-pad"
+                  placeholder="10.000"
+                  maxLength={11}
+                />
+              </View>
+              <Text style={styles.unit}>đ</Text>
+            </View>
+
+            <View style={styles.updateBlock}>
+              <Button
+                label="Cập nhật"
+                size="md"
+                onPress={() => void onUpdatePress()}
+                loading={updatingService}
+              />
+            </View>
+          </View>
+
+          <View style={styles.card}>
+            <SectionHeader
+              title="Kỹ năng"
+              icon="game-controller-outline"
+              actionLabel="Chỉnh sửa"
+              onAction={() => router.push('/update-skills')}
+            />
+            {gamesQuery.isLoading ? (
+              <Text style={styles.empty}>Đang tải...</Text>
+            ) : games.length === 0 ? (
+              <Text style={styles.empty}>Chưa cập nhật kỹ năng</Text>
+            ) : (
+              games.map((item) => (
+                <View key={item.id} style={styles.lineRow}>
+                  <View style={styles.lineDot} />
+                  <Text style={styles.gameLine}>
+                    {item.game?.name}
+                    {item.rankId !== 'None' && item.rank
+                      ? ` : ${item.rank.name}`
+                      : ''}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <SectionHeader
+              title="Giờ online"
+              icon="time-outline"
+              actionLabel="Chỉnh sửa"
+              onAction={() => router.push('/update-hours')}
+            />
+            {WEEK_DAYS.map((day) => {
+              const items = datingsByDay[day.day] ?? [];
+              return (
+                <View key={day.day} style={styles.dayRow}>
+                  <Text style={styles.dayLabel}>{day.label}</Text>
+                  {items.length === 0 ? (
+                    <Text style={styles.dayEmpty}>—</Text>
+                  ) : (
+                    <View style={styles.hourChips}>
+                      {items.map((item) => (
+                        <View key={item.id} style={styles.hourChip}>
+                          <Text style={styles.hourText}>
+                            {formatMinuteOfDay(item.fromHour)} -{' '}
+                            {formatMinuteOfDay(item.toHour)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: {
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm, gap: spacing.sm },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
-    paddingBottom: spacing.xxl,
-    gap: spacing.sm,
+    gap: spacing.xxs,
   },
+  statusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: touchTarget,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+  },
+  statusCardOn: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
+  },
+  statusCardOff: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+  },
+  statusDot: { width: 9, height: 9, borderRadius: radius.pill },
   status: {
     fontFamily: fonts.bold,
-    fontSize: 17,
+    fontSize: 15,
+    letterSpacing: -0.2,
     textAlign: 'center',
-    paddingVertical: spacing.xs,
+    flexShrink: 1,
   },
-  online: { color: colors.success },
-  offline: { color: colors.grey },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    paddingVertical: spacing.xs,
+    minHeight: touchTarget,
   },
+  rowPressed: { opacity: 0.7 },
+  choiceRow: { gap: spacing.xs, paddingVertical: spacing.xs },
+  hourOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   rowTitle: {
     fontFamily: fonts.medium,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
     flexShrink: 1,
   },
-  hourOptions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
   priceRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  priceInput: { flex: 1 },
+  priceInput: { flex: 1, minWidth: 0 },
   unit: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.text,
+    ...FLOAT_BAND_STYLE,
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    color: colors.textSecondary,
   },
-  updateButton: {
-    alignSelf: 'center',
-    width: 180,
-    borderRadius: radius.sm,
-  },
+  updateBlock: { marginTop: spacing.sm, maxWidth: 320, alignSelf: 'center' },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
-    marginVertical: spacing.sm,
+    marginVertical: spacing.xs,
   },
-  sectionHeader: {
+  lineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
+    gap: spacing.xs,
+    paddingVertical: 3,
   },
-  pressed: { opacity: 0.7 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  link: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.textMuted,
+  lineDot: {
+    width: 5,
+    height: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryMuted,
   },
   empty: {
     fontFamily: fonts.regular,
     fontSize: 13,
     color: colors.textMuted,
-    paddingLeft: spacing.md,
     paddingVertical: spacing.xs,
   },
   gameLine: {
+    flex: 1,
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.text,
-    paddingLeft: spacing.md,
-    paddingVertical: 2,
   },
   dayRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 5,
   },
   dayLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.text,
     width: 62,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   dayEmpty: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.textMuted,
+    color: colors.textFaint,
   },
-  hourChips: { gap: spacing.sm, paddingRight: spacing.md },
+  hourChips: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    minWidth: 0,
+  },
+  hourChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryFaint,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
   hourText: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.text,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: colors.primaryInk,
   },
 });

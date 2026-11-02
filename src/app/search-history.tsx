@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Pressable,
@@ -15,14 +14,17 @@ import { gameService } from '@/api/services/catalog';
 import {
   searchHistoryService,
 } from '@/api/services/content';
-import { ErrorView, Skeleton, useToast } from '@/components/ui';
+import { Button, ErrorView, Skeleton, useToast } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, control, fonts, hitSlop, radius, spacing } from '@/theme';
 
 export default function SearchHistoryScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { gutter, contentStyle, itemWidth } = useResponsive();
   const [keyword, setKeyword] = useState('');
 
   const recentQuery = useQuery({
@@ -68,11 +70,13 @@ export default function SearchHistoryScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.appBar}>
         <Pressable
-          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại"
+          hitSlop={hitSlop.sm}
           onPress={() => router.back()}
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.back, pressed && styles.backPressed]}
         >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
 
         <View style={styles.searchBox}>
@@ -81,18 +85,24 @@ export default function SearchHistoryScreen() {
             value={keyword}
             onChangeText={setKeyword}
             onSubmitEditing={() => openSearch(keyword)}
-            placeholder="Tìm kiếm"
+            placeholder="Tìm người chơi, tựa game"
             placeholderTextColor={colors.textFaint}
+            accessibilityLabel="Từ khoá tìm kiếm"
             returnKeyType="search"
             style={styles.input}
             autoFocus
           />
           {keyword ? (
-            <Pressable hitSlop={8} onPress={() => setKeyword('')}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Xoá từ khoá"
+              hitSlop={hitSlop.sm}
+              onPress={() => setKeyword('')}
+            >
               <Ionicons
                 name="close-circle"
                 size={18}
-                color={colors.primary}
+                color={colors.primaryAction}
               />
             </Pressable>
           ) : null}
@@ -100,7 +110,8 @@ export default function SearchHistoryScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        style={contentStyle}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -143,11 +154,24 @@ export default function SearchHistoryScreen() {
               {[0, 1, 2, 3].map((key) => (
                 <Skeleton
                   key={key}
-                  width="47%"
+                  width={itemWidth(140, spacing.sm)}
                   height={46}
                   radius={radius.md}
                 />
               ))}
+            </View>
+          ) : gamesQuery.isError && (gamesQuery.data ?? []).length === 0 ? (
+            <View style={styles.gamesError}>
+              <Text style={styles.empty}>
+                Không tải được danh sách game hot.
+              </Text>
+              <Button
+                label="Thử lại"
+                variant="outline"
+                size="sm"
+                fullWidth={false}
+                onPress={() => void gamesQuery.refetch()}
+              />
             </View>
           ) : (gamesQuery.data ?? []).length === 0 ? (
             <Text style={styles.empty}>Chưa có dữ liệu</Text>
@@ -159,9 +183,12 @@ export default function SearchHistoryScreen() {
                 return (
                   <Pressable
                     key={game.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Tìm kiếm ${label}`}
                     onPress={() => openSearch(label)}
                     style={({ pressed }) => [
                       styles.gameChip,
+                      { width: itemWidth(140, spacing.sm) },
                       pressed && styles.pressed,
                     ]}
                   >
@@ -206,7 +233,9 @@ function SearchSection({
         <Text style={styles.sectionTitle}>{title}</Text>
         {onClear && items.length > 0 ? (
           <Pressable
-            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Xoá tất cả lịch sử tìm kiếm"
+            hitSlop={hitSlop.sm}
             onPress={onClear}
             style={({ pressed }) => [pressed && styles.pressed]}
           >
@@ -227,6 +256,8 @@ function SearchSection({
         items.map((item) => (
           <View key={item.id} style={styles.row}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Tìm kiếm ${item.value}`}
               onPress={() => onPressValue(item.value)}
               style={({ pressed }) => [styles.rowMain, pressed && styles.pressed]}
             >
@@ -241,7 +272,9 @@ function SearchSection({
             </Pressable>
             {onRemove ? (
               <Pressable
-                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={`Xoá ${item.value}`}
+                hitSlop={hitSlop.sm}
                 onPress={() => onRemove(item.id)}
                 style={({ pressed }) => [pressed && styles.pressed]}
               >
@@ -261,23 +294,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    minHeight: control.appBarHeight,
     paddingRight: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   back: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
   },
+  backPressed: { opacity: 0.7 },
   pressed: { opacity: 0.7 },
   searchBox: {
     flex: 1,
-    height: 42,
-    borderRadius: radius.md,
+    height: control.inputHeight,
+    borderRadius: radius.pill,
     backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -291,7 +330,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   scroll: {
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     gap: spacing.lg,
     paddingBottom: spacing.xxl,
@@ -301,23 +339,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 28,
   },
   sectionTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontFamily: fonts.bold,
+    fontSize: 16,
     color: colors.text,
+    letterSpacing: -0.2,
   },
   clearText: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 12,
-    color: colors.primary,
+    color: colors.danger,
+    paddingVertical: spacing.xxs,
   },
   loadingRows: { gap: spacing.sm, paddingVertical: spacing.xs },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: 10,
+    minHeight: control.buttonSm,
     paddingHorizontal: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
@@ -326,7 +367,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
+    minHeight: control.buttonSm,
+    paddingVertical: spacing.xs,
   },
   rowText: {
     flex: 1,
@@ -346,12 +389,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
+  gamesError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
   gameChip: {
-    width: '47%',
     minHeight: 46,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.primaryBorder,
     backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
@@ -360,6 +408,6 @@ const styles = StyleSheet.create({
   gameChipText: {
     fontFamily: fonts.medium,
     fontSize: 13,
-    color: colors.primaryDark,
+    color: colors.primaryInk,
   },
 });

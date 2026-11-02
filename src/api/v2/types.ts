@@ -117,15 +117,19 @@ export interface VerifyOtpResponse {
 }
 
 export type OrderStatus =
-  | 'PROCESSING'
-  | 'ACCEPTED'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'REJECTED'
+  | 'PROPOSED'
+  | 'SCHEDULED'
+  | 'LIVE'
+  | 'DISPUTED'
+  | 'ENDED_EARLY'
+  | 'SETTLED'
+  | 'CLOSED';
+
+export type OrderCloseReason =
+  | 'REJECTED_BY_PLAYER'
+  | 'CANCELLED_BY_HIRER'
   | 'EXPIRED'
-  | 'ENDED_EARLY_BY_HIRER'
-  | 'ENDED_EARLY_BY_PLAYER'
-  | 'INTERRUPTED';
+  | 'INTERRUPTED_BY_ADMIN';
 
 export interface OrderGame {
   id: string;
@@ -143,10 +147,14 @@ export interface OrderView {
   playerPayout: number | null;
   message: string;
   reason: string | null;
+  closeReason: OrderCloseReason | null;
+  endedEarlyBy: 'HIRER' | 'PLAYER' | null;
   respondBy: string;
   startsAt: string | null;
   scheduledEndAt: string | null;
   endedAt: string | null;
+  disputedAt: string | null;
+  disputeDeadlineAt: string | null;
   createdAt: string;
   updatedAt: string;
   hirer: UserSummary;

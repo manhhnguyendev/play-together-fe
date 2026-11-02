@@ -10,14 +10,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { behaviorService } from '@/api/services/users';
 import type { BehaviorEvent, BehaviorHistoryItem } from '@/api/v2/types';
-import {
-  AppBar,
-  Button,
-  EmptyState,
-  ErrorView,
-  LoadingView,
-} from '@/components/ui';
-import { formatDateTimeAmPm } from '@/lib/format';
+import { AppBar, Button, EmptyState, ErrorView, LoadingView, SectionHeader } from '@/components/ui';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatDateTime } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { colors, fonts, radius, spacing } from '@/theme';
 
@@ -38,6 +33,7 @@ const POINT_TYPE_LABELS: Record<BehaviorHistoryItem['pointType'], string> = {
 
 export default function BehaviorHistoryScreen() {
   const [pageSize, setPageSize] = useState(20);
+  const { gutter, contentStyle } = useResponsive();
 
   const behaviorQuery = useQuery({
     queryKey: queryKeys.behavior,
@@ -60,14 +56,16 @@ export default function BehaviorHistoryScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        style={contentStyle}
+        contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
+        showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <>
+          <View style={styles.headerBlock}>
             <View style={styles.scoreCard}>
               <ScoreBar
                 label="Điểm hành vi"
                 value={behaviorQuery.data?.points ?? 100}
-                color={colors.primary}
+                color={colors.primaryAction}
               />
               <ScoreBar
                 label="Điểm hài lòng"
@@ -75,12 +73,12 @@ export default function BehaviorHistoryScreen() {
                 color={colors.gold}
               />
             </View>
-            <Text style={styles.sectionTitle}>Lịch sử thay đổi</Text>
+            <SectionHeader title="Lịch sử thay đổi" icon="time-outline" />
             {historyQuery.isLoading ? <LoadingView /> : null}
             {historyQuery.isError ? (
               <ErrorView onRetry={() => historyQuery.refetch()} />
             ) : null}
-          </>
+          </View>
         }
         renderItem={({ item }) => <HistoryRow item={item} />}
         ListEmptyComponent={
@@ -143,25 +141,28 @@ function HistoryRow({ item }: { item: BehaviorHistoryItem }) {
       <View
         style={[
           styles.iconWrap,
-          { backgroundColor: added ? colors.primaryFaint : '#FDE8E8' },
+          { backgroundColor: added ? colors.primaryFaint : colors.dangerSoft },
         ]}
       >
         <Ionicons
           name={added ? 'arrow-up' : 'arrow-down'}
           size={16}
-          color={added ? colors.primary : colors.danger}
+          color={added ? colors.primaryAction : colors.danger}
         />
       </View>
       <View style={styles.rowBody}>
         <Text style={styles.rowTitle}>{EVENT_LABELS[item.event]}</Text>
         <Text style={styles.rowMeta}>
           {POINT_TYPE_LABELS[item.pointType]} ·{' '}
-          {formatDateTimeAmPm(item.createdAt)}
+          {formatDateTime(item.createdAt)}
         </Text>
         {item.note ? <Text style={styles.rowNote}>{item.note}</Text> : null}
       </View>
       <Text
-        style={[styles.delta, { color: added ? colors.primary : colors.danger }]}
+        style={[
+          styles.delta,
+          { color: added ? colors.primaryAction : colors.danger },
+        ]}
       >
         {added ? '+' : '−'}
         {item.amount}
@@ -171,12 +172,14 @@ function HistoryRow({ item }: { item: BehaviorHistoryItem }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  list: { padding: spacing.md, gap: spacing.sm, paddingBottom: spacing.xxl },
+  safe: { flex: 1, backgroundColor: colors.background },
+  list: { paddingVertical: spacing.sm, gap: spacing.sm, paddingBottom: spacing.xxl },
+  headerBlock: { gap: spacing.sm },
   scoreCard: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
     gap: spacing.md,
   },
@@ -185,46 +188,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.sm,
   },
   scoreLabel: {
     fontFamily: fonts.medium,
     fontSize: 14,
     color: colors.text,
+    flexShrink: 1,
   },
   scoreValue: {
     fontFamily: fonts.semibold,
     fontSize: 14,
-    color: colors.text,
+    color: colors.textStrong,
   },
   scoreTrack: {
     height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.background,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceMuted,
     overflow: 'hidden',
   },
-  scoreFill: { height: '100%', borderRadius: 4 },
-  sectionTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-    color: colors.text,
-    marginTop: spacing.sm,
-  },
+  scoreFill: { height: '100%', borderRadius: radius.pill },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.md,
   },
   iconWrap: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowBody: { flex: 1, gap: 2 },
+  rowBody: { flex: 1, gap: 2, minWidth: 0 },
   rowTitle: {
     fontFamily: fonts.medium,
     fontSize: 14,

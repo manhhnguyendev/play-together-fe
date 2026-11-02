@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   Modal,
@@ -11,7 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { datingService } from '@/api/services/catalog';
 import { blockService, userService } from '@/api/services/users';
 import type { OnlineHourModel } from '@/api/types';
@@ -27,10 +27,12 @@ import {
 } from '@/components/ui';
 import { isPlayerBusy } from '@/features/discovery/status';
 import { formatMinuteOfDay } from '@/features/hours/time';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { formatNumber, initialsOf } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, fonts, hitSlop, radius, spacing } from '@/theme';
 
 const DAYS: { day: number; label: string }[] = [
   { day: 2, label: 'Thứ 2' },
@@ -43,8 +45,10 @@ const DAYS: { day: number; label: string }[] = [
 ];
 
 export default function PlayerProfileScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, cardWidth, type, isSmall } = useResponsive();
   const params = useLocalSearchParams<{ id?: string }>();
   const playerId = typeof params.id === 'string' ? params.id : '';
   const currentUser = useAuthStore((state) => state.user);
@@ -107,6 +111,8 @@ export default function PlayerProfileScreen() {
   const images = player.images ?? [];
   const games = gamesQuery.data ?? [];
   const datings = datingsQuery.data ?? [];
+  const tile = cardWidth(spacing.sm);
+  const avatarSize = isSmall ? 96 : 112;
 
   const datingsByDay = (day: number): OnlineHourModel[] =>
     datings.filter((item) => item.dayInWeek === day);
@@ -145,191 +151,256 @@ export default function PlayerProfileScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Hồ sơ người chơi" />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.avatarWrap}>
-            {player.avatar ? (
-              <Image
-                source={{ uri: player.avatar }}
-                style={styles.avatar}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarFallbackText}>
-                  {initialsOf(player.name)}
+        <View style={[styles.column, contentStyle]}>
+          <View style={styles.header}>
+            <View style={[styles.avatarWrap, { width: avatarSize, height: avatarSize }]}>
+              {player.avatar ? (
+                <Image
+                  source={{ uri: player.avatar }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                  transition={140}
+                />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text
+                    style={[
+                      styles.avatarFallbackText,
+                      { fontSize: Math.round(avatarSize * 0.34) },
+                    ]}
+                  >
+                    {initialsOf(player.name)}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.name, type.title2]} numberOfLines={1}>
+              {player.name}
+            </Text>
+            <StatusText status={player.status} size={15} />
+            <View style={styles.headerMeta}>
+              <View style={styles.metaPill}>
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={colors.primaryAction}
+                />
+                <Text style={styles.metaPillText}>{player.city || '—'}</Text>
+              </View>
+              <View style={styles.metaPill}>
+                <Ionicons name="star" size={14} color={colors.gold} />
+                <Text style={styles.metaPillText}>
+                  {player.rate.toFixed(1)} ({player.numOfRate})
                 </Text>
               </View>
-            )}
-          </View>
-          <Text style={styles.name}>{player.name}</Text>
-          <StatusText status={player.status} size={15} />
-          <View style={styles.headerMeta}>
-            <Ionicons name="location-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.headerMetaText}>{player.city || '—'}</Text>
-          </View>
-        </View>
-
-        <Section title="Hình ảnh" icon="images-outline">
-          {images.length === 0 ? (
-            <Text style={styles.emptyText}>Chưa có hình ảnh</Text>
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.imageRow}
-            >
-              {images.map((image) => (
-                <Pressable
-                  key={image.id}
-                  onPress={() => setActiveImage(image.imageLink)}
-                >
-                  <Image
-                    source={{ uri: image.imageLink }}
-                    style={styles.galleryImage}
-                    contentFit="cover"
-                  />
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-        </Section>
-
-        <Pressable
-          onPress={() => router.push(`/ratings/${player.id}`)}
-          style={({ pressed }) => [
-            styles.ratingRow,
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <View style={styles.ratingLeft}>
-            <Text style={styles.sectionTitle}>Đánh giá</Text>
-            <View style={styles.ratingValueRow}>
-              <Ionicons name="star" size={15} color={colors.gold} />
-              <Text style={styles.ratingValue}>{player.rate.toFixed(1)}</Text>
-              <Text style={styles.ratingCount}>({player.numOfRate})</Text>
             </View>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailText}>Chi tiết đánh giá</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={16}
-              color={colors.textMuted}
-            />
-          </View>
-        </Pressable>
 
-        {currentUser && player.id !== currentUser.id ? (
-          <Pressable
-            disabled={toggleBlock.isPending}
-            onPress={() => toggleBlock.mutate(player.isBlockedByMe)}
-            style={({ pressed }) => [styles.blockRow, pressed && styles.pressed]}
-          >
-            <View style={styles.blockLabel}>
-              <Ionicons
-                name={player.isBlockedByMe ? 'checkmark-circle-outline' : 'ban-outline'}
-                size={18}
-                color={player.isBlockedByMe ? colors.primary : colors.danger}
-              />
-              <Text
-                style={[
-                  styles.blockText,
-                  !player.isBlockedByMe && styles.blockTextDanger,
-                ]}
+          <Section title="Hình ảnh" icon="images-outline">
+            {images.length === 0 ? (
+              <Text style={styles.emptyText}>Chưa có hình ảnh</Text>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.imageRow}
               >
-                {player.isBlockedByMe ? 'Bỏ chặn người dùng' : 'Chặn người dùng'}
-              </Text>
+                {images.map((image) => (
+                  <Pressable
+                    key={image.id}
+                    accessibilityRole="imagebutton"
+                    accessibilityLabel="Xem ảnh lớn"
+                    onPress={() => setActiveImage(image.imageLink)}
+                    style={({ pressed }) => pressed && styles.pressed}
+                  >
+                    <Image
+                      source={{ uri: image.imageLink }}
+                      style={[styles.galleryImage, { width: tile * 1.4 }]}
+                      contentFit="cover"
+                      transition={140}
+                    />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </Section>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Xem chi tiết đánh giá"
+            onPress={() => router.push(`/ratings/${player.id}`)}
+            style={({ pressed }) => [
+              styles.card,
+              styles.ratingRow,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.ratingLeft}>
+              <Text style={styles.sectionTitle}>Đánh giá</Text>
+              <View style={styles.ratingValueRow}>
+                <Ionicons name="star" size={15} color={colors.gold} />
+                <Text style={styles.ratingValue}>{player.rate.toFixed(1)}</Text>
+                <Text style={styles.ratingCount}>({player.numOfRate})</Text>
+              </View>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.grey} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailText}>Chi tiết đánh giá</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={colors.textMuted}
+              />
+            </View>
           </Pressable>
-        ) : null}
 
-        <Section title="Thông tin" icon="person-outline">
-          <Text style={styles.description}>
-            {player.description || 'Người chơi chưa cập nhật giới thiệu.'}
-          </Text>
-        </Section>
-
-        <Section title="Kỹ năng" icon="game-controller-outline">
-          {gamesQuery.isLoading ? (
-            <Text style={styles.emptyText}>Đang tải...</Text>
-          ) : games.length === 0 ? (
-            <Text style={styles.emptyText}>Chưa cập nhật kỹ năng</Text>
-          ) : (
-            <View style={styles.skillList}>
-              {games.map((item) => (
-                <View key={item.id} style={styles.skillRow}>
-                  <Text style={styles.skillGame}>• {item.game?.name}</Text>
-                  {item.rankId !== 'None' && item.rank ? (
-                    <Text style={styles.skillRank}>: {item.rank.name}</Text>
-                  ) : null}
+          {currentUser && player.id !== currentUser.id ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                player.isBlockedByMe ? 'Bỏ chặn người dùng' : 'Chặn người dùng'
+              }
+              accessibilityState={{ disabled: toggleBlock.isPending }}
+              disabled={toggleBlock.isPending}
+              hitSlop={hitSlop.sm}
+              onPress={() => toggleBlock.mutate(player.isBlockedByMe)}
+              style={({ pressed }) => [
+                styles.card,
+                styles.blockRow,
+                player.isBlockedByMe ? null : styles.blockCardDanger,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.blockLabel}>
+                <View
+                  style={[
+                    styles.blockIcon,
+                    player.isBlockedByMe ? null : styles.blockIconDanger,
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      player.isBlockedByMe
+                        ? 'checkmark-circle-outline'
+                        : 'ban-outline'
+                    }
+                    size={18}
+                    color={
+                      player.isBlockedByMe ? colors.primaryAction : colors.danger
+                    }
+                  />
                 </View>
-              ))}
-            </View>
-          )}
-        </Section>
+                <Text
+                  style={[
+                    styles.blockText,
+                    !player.isBlockedByMe && styles.blockTextDanger,
+                  ]}
+                >
+                  {player.isBlockedByMe ? 'Bỏ chặn người dùng' : 'Chặn người dùng'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.grey} />
+            </Pressable>
+          ) : null}
 
-        <Section title="Giờ online" icon="time-outline">
-          {datingsQuery.isLoading ? (
-            <Text style={styles.emptyText}>Đang tải...</Text>
-          ) : (
-            <View style={styles.hoursList}>
-              {DAYS.map(({ day, label }) => {
-                const items = datingsByDay(day);
-                return (
-                  <View key={day} style={styles.hoursRow}>
-                    <Text style={styles.hoursDay}>{label}:</Text>
-                    {items.length === 0 ? (
-                      <Text style={styles.emptyText}>Không có dữ liệu</Text>
-                    ) : (
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.hoursChips}
-                      >
-                        {items.map((item) => (
-                          <View key={item.id} style={styles.hourChip}>
-                            <Text style={styles.hourChipText}>
-                              {formatMinuteOfDay(item.fromHour)} -{' '}
-                              {formatMinuteOfDay(item.toHour)}
-                            </Text>
-                          </View>
-                        ))}
-                      </ScrollView>
-                    )}
+          <Section title="Thông tin" icon="person-outline">
+            <Text style={styles.description}>
+              {player.description || 'Người chơi chưa cập nhật giới thiệu.'}
+            </Text>
+          </Section>
+
+          <Section title="Kỹ năng" icon="game-controller-outline">
+            {gamesQuery.isLoading ? (
+              <Text style={styles.emptyText}>Đang tải...</Text>
+            ) : games.length === 0 ? (
+              <Text style={styles.emptyText}>Chưa cập nhật kỹ năng</Text>
+            ) : (
+              <View style={styles.skillList}>
+                {games.map((item) => (
+                  <View key={item.id} style={styles.skillRow}>
+                    <View style={styles.skillDot} />
+                    <Text style={styles.skillGame}>{item.game?.name}</Text>
+                    {item.rankId !== 'None' && item.rank ? (
+                      <Text style={styles.skillRank}>{item.rank.name}</Text>
+                    ) : null}
                   </View>
-                );
-              })}
-            </View>
-          )}
-        </Section>
+                ))}
+              </View>
+            )}
+          </Section>
 
-        {player.isPlayer ? null : (
-          <EmptyState
-            icon="alert-circle-outline"
-            title="Người chơi hiện không nhận thuê"
-            description="Bạn vẫn có thể xem hồ sơ và đánh giá của người chơi này."
-          />
-        )}
+          <Section title="Giờ online" icon="time-outline">
+            {datingsQuery.isLoading ? (
+              <Text style={styles.emptyText}>Đang tải...</Text>
+            ) : (
+              <View style={styles.hoursList}>
+                {DAYS.map(({ day, label }) => {
+                  const items = datingsByDay(day);
+                  return (
+                    <View key={day} style={styles.hoursRow}>
+                      <Text style={styles.hoursDay}>{label}</Text>
+                      {items.length === 0 ? (
+                        <Text style={styles.hoursEmpty}>—</Text>
+                      ) : (
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.hoursChips}
+                        >
+                          {items.map((item) => (
+                            <View key={item.id} style={styles.hourChip}>
+                              <Text style={styles.hourChipText}>
+                                {formatMinuteOfDay(item.fromHour)} -{' '}
+                                {formatMinuteOfDay(item.toHour)}
+                              </Text>
+                            </View>
+                          ))}
+                        </ScrollView>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </Section>
+
+          {player.isPlayer ? null : (
+            <EmptyState
+              icon="alert-circle-outline"
+              title="Người chơi hiện không nhận thuê"
+              description="Bạn vẫn có thể xem hồ sơ và đánh giá của người chơi này."
+            />
+          )}
+        </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <View>
-          <Text style={styles.price}>
-            {formatNumber(player.pricePerHour)}đ
-            <Text style={styles.priceUnit}>/h</Text>
-          </Text>
-          <Text style={styles.footerHint}>Giá thuê mỗi giờ</Text>
-        </View>
-        <View style={styles.hireButton}>
-          <Button
-            label="Thuê"
-            onPress={handleHire}
-            disabled={!player.isPlayer}
-          />
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingHorizontal: gutter,
+            paddingBottom: insets.bottom + spacing.sm,
+          },
+        ]}
+      >
+        <View style={[styles.footerRow, contentStyle]}>
+          <View style={styles.priceBlock}>
+            <Text style={styles.price}>
+              {formatNumber(player.pricePerHour)}đ
+              <Text style={styles.priceUnit}>/h</Text>
+            </Text>
+            <Text style={styles.footerHint}>Giá thuê mỗi giờ</Text>
+          </View>
+          <View style={styles.hireButton}>
+            <Button
+              label="Thuê"
+              size="md"
+              onPress={handleHire}
+              disabled={!player.isPlayer}
+            />
+          </View>
         </View>
       </View>
 
@@ -340,6 +411,8 @@ export default function PlayerProfileScreen() {
         onRequestClose={() => setActiveImage(null)}
       >
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Đóng ảnh"
           style={styles.modalBackdrop}
           onPress={() => setActiveImage(null)}
         >
@@ -350,6 +423,9 @@ export default function PlayerProfileScreen() {
               contentFit="contain"
             />
           ) : null}
+          <View style={[styles.modalClose, { top: Math.max(insets.top, spacing.md) }]}>
+            <Ionicons name="close" size={22} color={colors.white} />
+          </View>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -366,87 +442,93 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <SectionHeader title={title} icon={icon} />
-      </View>
+    <View style={styles.card}>
+      <SectionHeader title={title} icon={icon} />
       {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { paddingBottom: spacing.xxl },
-  header: { alignItems: 'center', paddingVertical: spacing.lg, gap: 4 },
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm, gap: spacing.sm },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  header: { alignItems: 'center', paddingVertical: spacing.md, gap: 5 },
   avatarWrap: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    borderRadius: radius.pill,
     overflow: 'hidden',
     backgroundColor: colors.primarySoft,
-    marginBottom: spacing.sm,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    marginBottom: spacing.xs,
   },
   avatar: { width: '100%', height: '100%' },
   avatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   avatarFallbackText: {
     fontFamily: fonts.bold,
-    fontSize: 46,
-    color: colors.primaryDark,
+    color: colors.primaryInk,
   },
   name: {
-    fontFamily: fonts.semibold,
-    fontSize: 22,
+    fontFamily: fonts.bold,
     color: colors.text,
+    letterSpacing: -0.4,
+    maxWidth: '100%',
   },
   headerMeta: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xxs,
+  },
+  metaPill: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
+    paddingHorizontal: spacing.sm,
+    minHeight: 28,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  headerMetaText: {
-    fontFamily: fonts.regular,
+  metaPillText: {
+    fontFamily: fonts.medium,
     fontSize: 12,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
-  section: {
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  sectionHeader: { paddingHorizontal: spacing.md },
   sectionTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 16,
+    fontFamily: fonts.bold,
+    fontSize: 17,
     color: colors.text,
+    letterSpacing: -0.2,
   },
   emptyText: {
     fontFamily: fonts.regular,
     fontSize: 13,
     color: colors.textMuted,
-    paddingHorizontal: spacing.md,
   },
-  imageRow: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
+  imageRow: { gap: spacing.sm },
   galleryImage: {
-    width: 150,
-    height: 100,
-    borderRadius: radius.sm,
-    backgroundColor: colors.background,
+    aspectRatio: 3 / 2,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    gap: spacing.sm,
   },
-  ratingLeft: { gap: 4 },
+  ratingLeft: { gap: 4, flex: 1, minWidth: 0 },
   ratingValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -467,37 +549,57 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
     paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
   },
+  blockCardDanger: { borderColor: colors.dangerSoft },
   blockLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
+    flex: 1,
+    minWidth: 0,
   },
+  blockIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryFaint,
+  },
+  blockIconDanger: { backgroundColor: colors.dangerSoft },
   blockText: {
     fontFamily: fonts.medium,
     fontSize: 14,
     color: colors.text,
   },
   blockTextDanger: { color: colors.danger },
-  pressed: { opacity: 0.65 },
+  pressed: { opacity: 0.7 },
   detailText: {
     fontFamily: fonts.medium,
     fontSize: 12,
     color: colors.textMuted,
   },
   description: {
-    paddingHorizontal: spacing.md,
     fontFamily: fonts.regular,
     fontSize: 14,
     lineHeight: 21,
-    color: colors.text,
+    color: colors.textSecondary,
   },
-  skillList: { paddingHorizontal: spacing.md, gap: 4 },
-  skillRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  skillList: { gap: spacing.xs },
+  skillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  skillDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.primaryMuted,
+  },
   skillGame: {
     fontFamily: fonts.medium,
     fontSize: 14,
@@ -505,49 +607,53 @@ const styles = StyleSheet.create({
   },
   skillRank: {
     fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.primaryDark,
+    fontSize: 13,
+    color: colors.primaryInk,
   },
-  hoursList: { gap: spacing.xs },
-  hoursRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingLeft: spacing.md,
-  },
+  hoursList: { gap: 6 },
+  hoursRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   hoursDay: {
-    width: 66,
+    width: 64,
     fontFamily: fonts.medium,
     fontSize: 13,
     color: colors.text,
   },
-  hoursChips: { gap: 6, paddingRight: spacing.md },
+  hoursEmpty: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.textFaint,
+  },
+  hoursChips: { gap: 6 },
   hourChip: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: radius.pill,
     backgroundColor: colors.primaryFaint,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
   },
   hourChipText: {
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     fontSize: 12,
-    color: colors.primaryDark,
+    color: colors.primaryInk,
   },
   footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  priceBlock: { minWidth: 0 },
   price: {
     fontFamily: fonts.bold,
-    fontSize: 20,
-    color: colors.primaryDark,
+    fontSize: 22,
+    color: colors.primaryInk,
   },
   priceUnit: {
     fontFamily: fonts.medium,
@@ -558,14 +664,25 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 11,
     color: colors.textFaint,
+    marginTop: 1,
   },
-  hireButton: { width: 140 },
+  hireButton: { width: 140, maxWidth: '46%', flexShrink: 0 },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: colors.scrim,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.md,
   },
-  modalImage: { width: '100%', height: '80%' },
+  modalImage: { width: '100%', height: '78%' },
+  modalClose: {
+    position: 'absolute',
+    right: spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
 });

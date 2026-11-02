@@ -9,11 +9,11 @@ import {
 } from '@/features/orders/status';
 import {
   formatDate,
-  formatTimeAmPm,
+  formatTime,
   formatVnd,
   isEmptyDate,
 } from '@/lib/format';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, hitSlop, spacing } from '@/theme';
 
 interface OrderHistoryCardProps {
   order: OrderModel;
@@ -39,6 +39,10 @@ export function OrderHistoryCard({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Lượt thuê với ${
+        otherParty?.name ?? 'người chơi'
+      }, ${orderStatusLabel(order.status)}`}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
     >
@@ -48,7 +52,7 @@ export function OrderHistoryCard({
             {otherParty?.name ?? 'Người chơi'}
           </Text>
           <Text style={styles.date}>
-            {formatDate(timeSource)}, {formatTimeAmPm(timeSource)}
+            {formatDate(timeSource)}, {formatTime(timeSource)}
           </Text>
         </View>
         {!isClosedOrder(order.status) ? (
@@ -64,7 +68,11 @@ export function OrderHistoryCard({
       <View style={styles.bottomRow}>
         {canReorder && onReorder ? (
           <Pressable
-            hitSlop={8}
+            hitSlop={hitSlop.sm}
+            accessibilityRole="button"
+            accessibilityLabel={`Đặt lại lượt thuê với ${
+              otherParty?.name ?? 'người chơi'
+            }`}
             onPress={onReorder}
             style={({ pressed }) => [
               styles.reorder,
@@ -72,7 +80,7 @@ export function OrderHistoryCard({
             ]}
           >
             <Text style={styles.reorderText}>Đặt lại </Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+            <Ionicons name="arrow-forward" size={16} color={colors.primaryAction} />
           </Pressable>
         ) : (
           <View />
@@ -123,7 +131,7 @@ const styles = StyleSheet.create({
   reorderText: {
     fontFamily: fonts.medium,
     fontSize: 13,
-    color: colors.primary,
+    color: colors.primaryAction,
   },
   status: {
     fontFamily: fonts.medium,

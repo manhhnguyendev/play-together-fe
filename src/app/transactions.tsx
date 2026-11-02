@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   FlatList,
@@ -10,16 +9,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { transactionService } from '@/api/services/content';
-import type { TransactionModel } from '@/api/types';
 import {
   AppBar,
   EmptyState,
   ErrorView,
   LoadingView,
 } from '@/components/ui';
-import { formatDateTimeAmPm, formatVnd } from '@/lib/format';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatDateTime, formatVnd } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, control, hitSlop, radius, spacing } from '@/theme';
 
 const FILTERS = [
   { label: 'Tất cả', type: '', operation: '' },
@@ -44,7 +44,8 @@ const transactionTitle = (type: string, operation: string): string => {
 };
 
 export default function TransactionsScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
+  const { gutter, contentStyle, itemWidth, type } = useResponsive();
   const [filterIndex, setFilterIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const filter = FILTERS[filterIndex];
@@ -71,20 +72,32 @@ export default function TransactionsScreen() {
         onBack={() => router.dismissTo('/(tabs)/personal')}
       />
 
-      <View style={styles.filters}>
+      <View style={[styles.filters, contentStyle, { paddingHorizontal: gutter }]}>
         {FILTERS.map((item, index) => {
           const active = index === filterIndex;
           return (
             <Pressable
               key={item.label}
+              accessibilityRole="button"
+              accessibilityLabel={`Lọc theo ${item.label}`}
+              accessibilityState={{ selected: active }}
+              hitSlop={hitSlop.sm}
               onPress={() => selectFilter(index)}
               style={({ pressed }) => [
                 styles.filter,
+                { width: itemWidth(150, spacing.sm) },
                 active && styles.filterActive,
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>
+              <Text
+                style={[
+                  styles.filterLabel,
+                  type.bodySmallMedium,
+                  active && styles.filterLabelActive,
+                ]}
+                numberOfLines={1}
+              >
                 {item.label}
               </Text>
             </Pressable>
@@ -106,17 +119,48 @@ export default function TransactionsScreen() {
         <FlatList
           data={transactions}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          style={contentStyle}
+          contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
+          showsVerticalScrollIndicator={false}
           onEndReached={() => {
             if (hasNext && !transactionsQuery.isFetching) {
               setPageSize((value) => value + 10);
             }
           }}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => <TransactionRow transaction={item} />}
+          renderItem={({ item }) => {
+            const isSub = item.operation === 'Sub';
+            return (
+              <View style={styles.card}>
+                <View style={styles.rowTop}>
+                  <Text style={[styles.rowTitle, type.bodyMedium]}>
+                    {transactionTitle(
+                      item.typeOfTransaction,
+                      item.operation,
+                    )}
+                  </Text>
+                  <Text style={[styles.rowDate, type.caption]}>
+                    {formatDateTime(item.createdDate)}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.amount,
+                    type.title3,
+                    isSub && styles.amountSub,
+                  ]}
+                >
+                  {isSub ? '−' : '+'}
+                  {formatVnd(item.money)}
+                </Text>
+              </View>
+            );
+          }}
           ListFooterComponent={
             hasNext && transactionsQuery.isFetching ? (
-              <Text style={styles.loadingMore}>Đang tải...</Text>
+              <Text style={[styles.loadingMore, type.bodySmall]}>
+                Đang tải...
+              </Text>
             ) : undefined
           }
         />
@@ -125,63 +169,41 @@ export default function TransactionsScreen() {
   );
 }
 
-function TransactionRow({ transaction }: { transaction: TransactionModel }) {
-  const isSub = transaction.operation === 'Sub';
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowTop}>
-        <Text style={styles.rowTitle}>
-          {transactionTitle(
-            transaction.typeOfTransaction,
-            transaction.operation,
-          )}
-        </Text>
-        <Text style={styles.rowDate}>
-          {formatDateTimeAmPm(transaction.createdDate)}
-        </Text>
-      </View>
-      <Text style={[styles.amount, isSub && styles.amountSub]}>
-        {isSub ? '−' : '+'}
-        {formatVnd(transaction.money)}
-      </Text>
-      <View style={styles.divider} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
   filters: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   filter: {
-    width: '31.5%',
-    height: 38,
+    minHeight: control.buttonSm,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryFaint,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  filterActive: { backgroundColor: colors.primary },
+  filterActive: {
+    backgroundColor: colors.primaryFill,
+    borderColor: colors.primaryFill,
+  },
   pressed: { opacity: 0.7 },
-  filterLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.primaryDark,
-  },
-  filterLabelActive: { color: colors.white },
-  list: { paddingBottom: spacing.xxl },
-  row: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+  filterLabel: { color: colors.textSecondary, textAlign: 'center' },
+  filterLabelActive: { color: colors.textOnPrimary },
+  list: { paddingTop: spacing.sm, paddingBottom: spacing.xxl, gap: spacing.xs },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.xxs,
   },
   rowTop: {
     flexDirection: 'row',
@@ -189,34 +211,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  rowTitle: {
-    flex: 1,
-    fontFamily: fonts.medium,
-    fontSize: 15,
-    color: colors.text,
-  },
-  rowDate: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  amount: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: colors.success,
-    textAlign: 'right',
-    marginTop: 2,
-  },
+  rowTitle: { flex: 1, minWidth: 0, color: colors.text },
+  rowDate: { color: colors.textMuted, maxWidth: '42%', textAlign: 'right' },
+  amount: { color: colors.success, textAlign: 'right' },
   amountSub: { color: colors.text },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginTop: spacing.sm,
-  },
   loadingMore: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
     color: colors.textMuted,
     textAlign: 'center',
     paddingVertical: spacing.md,

@@ -9,7 +9,7 @@ export default function Index() {
   if (status === 'loading') {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.primaryAction} />
       </View>
     );
   }

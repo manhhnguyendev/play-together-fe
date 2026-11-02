@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imageService } from '@/api/services/content';
 import { userService } from '@/api/services/users';
 import type { ImageModel } from '@/api/types';
@@ -19,17 +20,21 @@ import {
   AppBar,
   Avatar,
   Button,
+  Chip,
   DatePickerField,
+  SectionHeader,
   SelectField,
   TextField,
   useToast,
 } from '@/components/ui';
 import { pickAvatar, pickGalleryImages } from '@/features/profile/pickImages';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { PROVINCES } from '@/lib/provinces';
 import { queryKeys } from '@/lib/queryKeys';
 import { messages } from '@/lib/validators';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, fonts, hitSlop, radius, spacing, touchTarget } from '@/theme';
 
 const CITY_OPTIONS = PROVINCES.map((province) => ({
   label: province,
@@ -42,9 +47,11 @@ const parseBirthday = (value?: string) => {
 };
 
 export default function UserProfileScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, cardWidth, type, width } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const refreshUser = useAuthStore((state) => state.refreshUser);
   const userId = user?.id ?? '';
@@ -69,6 +76,9 @@ export default function UserProfileScreen() {
   const images = imagesQuery.data ?? [];
 
   if (!user) return null;
+
+  const tile = cardWidth(spacing.sm);
+  const previewHeight = Math.round(Math.min(width * 0.55, 420));
 
   const chooseAvatar = async () => {
     try {
@@ -144,131 +154,175 @@ export default function UserProfileScreen() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Thông tin tài khoản" />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.avatarWrap}>
-          <Avatar uri={avatar || null} name={name} size={130} />
-          <Pressable
-            onPress={() => void chooseAvatar()}
-            style={({ pressed }) => [
-              styles.cameraButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="camera" size={18} color={colors.text} />
-          </Pressable>
-        </View>
-
-        <View style={styles.imagesHeader}>
-          <Text style={styles.sectionTitle}>Hình ảnh</Text>
-          <Pressable
-            hitSlop={8}
-            disabled={addingImages}
-            onPress={() => void addGalleryImages()}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <Ionicons
-              name="add-circle-outline"
-              size={24}
-              color={addingImages ? colors.textFaint : colors.text}
-            />
-          </Pressable>
-        </View>
-
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.imageRow}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {images.length === 0 ? (
-            <Text style={styles.imageEmpty}>Chưa có hình ảnh nào</Text>
-          ) : (
-            images.map((image) => (
+          <View style={[styles.column, contentStyle]}>
+            <View style={styles.avatarWrap}>
+              <Avatar uri={avatar || null} name={name} size={124} />
               <Pressable
-                key={image.id}
-                onPress={() => setPreview(image)}
-                style={({ pressed }) => pressed && styles.pressed}
+                accessibilityRole="button"
+                accessibilityLabel="Chọn ảnh đại diện"
+                hitSlop={hitSlop.sm}
+                onPress={() => void chooseAvatar()}
+                style={({ pressed }) => [
+                  styles.cameraButton,
+                  pressed && styles.pressed,
+                ]}
               >
-                <Image
-                  source={{ uri: image.imageLink }}
-                  style={styles.userImage}
-                  contentFit="cover"
-                />
+                <Ionicons name="camera" size={18} color={colors.text} />
               </Pressable>
-            ))
-          )}
-        </ScrollView>
+            </View>
 
-        <View style={styles.form}>
-          <TextField
-            label="Tên"
-            value={name}
-            onChangeText={(value) => {
-              setName(value);
-              if (value.trim()) setNameError(null);
-            }}
-            placeholder="Nhập vào tên"
-            maxLength={30}
-            error={nameError}
-          />
+            <View style={styles.card}>
+              <View style={styles.imagesHeader}>
+                <Text style={[styles.imagesTitle, type.title3]}>Hình ảnh</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Thêm ảnh"
+                  accessibilityState={{ disabled: addingImages }}
+                  hitSlop={hitSlop.sm}
+                  disabled={addingImages}
+                  onPress={() => void addGalleryImages()}
+                  style={({ pressed }) => [
+                    styles.iconButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={22}
+                    color={addingImages ? colors.textFaint : colors.primaryAction}
+                  />
+                </Pressable>
+              </View>
 
-          <SelectField
-            label="Thành phố của bạn"
-            placeholder="Chọn nơi sinh sống"
-            value={city}
-            options={CITY_OPTIONS}
-            onChange={setCity}
-          />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.imageRow}
+              >
+                {imagesQuery.isPending ? (
+                  <Text style={styles.imageEmpty}>Đang tải ảnh...</Text>
+                ) : imagesQuery.isError && images.length === 0 ? (
+                  <View style={styles.imagesError}>
+                    <Text style={styles.imageEmpty}>
+                      Không tải được ảnh của bạn.
+                    </Text>
+                    <Button
+                      label="Thử lại"
+                      variant="outline"
+                      size="sm"
+                      fullWidth={false}
+                      onPress={() => void imagesQuery.refetch()}
+                    />
+                  </View>
+                ) : images.length === 0 ? (
+                  <Text style={styles.imageEmpty}>Chưa có hình ảnh nào</Text>
+                ) : (
+                  images.map((image) => (
+                    <Pressable
+                      key={image.id}
+                      accessibilityRole="image"
+                      accessibilityLabel="Xem ảnh lớn"
+                      onPress={() => setPreview(image)}
+                      style={({ pressed }) => pressed && styles.pressed}
+                    >
+                      <Image
+                        source={{ uri: image.imageLink }}
+                        style={[styles.userImage, { width: tile, height: Math.round(tile * 0.75) }]}
+                        contentFit="cover"
+                        transition={140}
+                      />
+                    </Pressable>
+                  ))
+                )}
+              </ScrollView>
+            </View>
 
-          <DatePickerField
-            label="Sinh nhật của bạn"
-            value={dateOfBirth}
-            onChange={setDateOfBirth}
-            minimumYear={currentYear - 100}
-            maximumYear={currentYear + 1}
-          />
+            <View style={[styles.card, styles.form]}>
+              <SectionHeader title="Hồ sơ" icon="person-outline" />
 
-          <View>
-            <Text style={styles.fieldLabel}>Giới tính:</Text>
-            <View style={styles.genderRow}>
-              <GenderOption
-                label="Nam"
-                selected={gender}
-                onPress={() => setGender(true)}
+              <TextField
+                variant="floating"
+                label="Tên"
+                value={name}
+                onChangeText={(value) => {
+                  setName(value);
+                  if (value.trim()) setNameError(null);
+                }}
+                maxLength={30}
+                error={nameError}
               />
-              <GenderOption
-                label="Nữ"
-                selected={!gender}
-                onPress={() => setGender(false)}
+
+              <SelectField
+                variant="floating"
+                label="Thành phố"
+                placeholder="Chọn thành phố"
+                value={city}
+                options={CITY_OPTIONS}
+                onChange={setCity}
+              />
+
+              <DatePickerField
+                variant="floating"
+                label="Ngày sinh"
+                placeholder="Chọn ngày"
+                value={dateOfBirth}
+                onChange={setDateOfBirth}
+                minimumYear={currentYear - 100}
+                maximumYear={currentYear + 1}
+              />
+
+              <View style={styles.genderBlock}>
+                <Text style={styles.fieldLabel}>Giới tính</Text>
+                <View style={styles.genderRow}>
+                  <Chip
+                    label="Nam"
+                    selected={gender}
+                    onPress={() => setGender(true)}
+                  />
+                  <Chip
+                    label="Nữ"
+                    selected={!gender}
+                    onPress={() => setGender(false)}
+                  />
+                </View>
+              </View>
+
+              <TextField
+                label="Giới thiệu"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Giới thiệu bản thân bạn"
+                maxLength={1000}
+                multiline
+                variant="floating"
+                containerStyle={styles.description}
               />
             </View>
           </View>
+        </ScrollView>
 
-          <TextField
-            label="Giới thiệu sơ lược"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Giới thiệu bản thân bạn ..."
-            maxLength={1000}
-            multiline
-            containerStyle={styles.description}
-          />
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}>
+          <View style={styles.footerInner}>
+            <Button
+              label="CẬP NHẬT"
+              size="lg"
+              loading={saving}
+              onPress={() => void save()}
+            />
+          </View>
         </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <Button
-          label="CẬP NHẬT"
-          size="lg"
-          loading={saving}
-          onPress={() => void save()}
-        />
-      </View>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={preview !== null}
@@ -278,26 +332,30 @@ export default function UserProfileScreen() {
       >
         <View style={styles.modalRoot}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đóng ảnh"
             style={styles.modalBackdrop}
             onPress={() => setPreview(null)}
           />
           {preview ? (
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, contentStyle]}>
               <Image
                 source={{ uri: preview.imageLink }}
-                style={styles.modalImage}
+                style={[styles.modalImage, { height: previewHeight }]}
                 contentFit="contain"
               />
               <View style={styles.modalActions}>
                 <Button
                   label="Xoá ảnh"
                   variant="danger"
+                  size="md"
                   onPress={() => void removeImage(preview)}
                   style={styles.modalButton}
                 />
                 <Button
                   label="Đóng"
                   variant="secondary"
+                  size="md"
                   onPress={() => setPreview(null)}
                   style={styles.modalButton}
                 />
@@ -310,33 +368,19 @@ export default function UserProfileScreen() {
   );
 }
 
-function GenderOption({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.genderOption, pressed && styles.pressed]}
-    >
-      <Ionicons
-        name={selected ? 'radio-button-on' : 'radio-button-off'}
-        size={20}
-        color={selected ? '#320444' : colors.textMuted}
-      />
-      <Text style={styles.genderLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { padding: spacing.md, paddingBottom: spacing.lg },
+  safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  scroll: { paddingVertical: spacing.sm },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  form: { gap: spacing.md },
   pressed: { opacity: 0.65 },
   avatarWrap: {
     alignSelf: 'center',
@@ -348,10 +392,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -359,17 +403,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
+    gap: spacing.sm,
+    minHeight: touchTarget - 8,
   },
-  sectionTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    color: colors.text,
+  imagesTitle: { color: colors.text, flexShrink: 1 },
+  iconButton: {
+    width: touchTarget,
+    height: touchTarget,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   imageRow: {
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    minHeight: 92,
+    paddingVertical: spacing.xs,
     alignItems: 'center',
   },
   imageEmpty: {
@@ -377,39 +424,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
   },
-  userImage: {
-    width: 120,
-    height: 88,
-    borderRadius: radius.sm,
-    backgroundColor: colors.background,
-  },
-  form: { gap: spacing.md, marginTop: spacing.sm },
-  fieldLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 6,
-    letterSpacing: 0.2,
-  },
-  genderRow: { flexDirection: 'row', gap: spacing.xl },
-  genderOption: {
+  imagesError: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
+    gap: spacing.sm,
   },
-  genderLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.text,
+  userImage: {
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceMuted,
   },
+  genderBlock: { gap: spacing.xs },
+  // Matches the lifted label inside the floating fields above it.
+  fieldLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.3,
+    color: colors.textSecondary,
+  },
+  genderRow: { flexDirection: 'row', gap: spacing.sm },
   description: { minHeight: 180 },
   footer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  footerInner: { maxWidth: 420, width: '100%', alignSelf: 'center' },
   modalRoot: {
     flex: 1,
     alignItems: 'center',
@@ -422,20 +464,20 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: colors.overlay,
+    backgroundColor: colors.scrim,
   },
   modalCard: {
-    width: '100%',
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.md,
   },
   modalImage: {
     width: '100%',
-    height: 320,
-    borderRadius: radius.sm,
-    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
   },
   modalActions: { flexDirection: 'row', gap: spacing.sm },
   modalButton: { flex: 1 },

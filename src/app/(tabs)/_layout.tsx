@@ -1,29 +1,50 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOngoingOrderGuard } from '@/features/orders/useOngoingOrderGuard';
 import { useUnreadNotificationCount } from '@/features/notifications/useUnreadNotificationCount';
-import { colors, fonts } from '@/theme';
+import { colors, control, fonts, radius, spacing, type } from '@/theme';
+
+type TabName = 'home' | 'history' | 'charity' | 'notifications' | 'personal';
+
+const icons: Record<TabName, { active: keyof typeof Ionicons.glyphMap; idle: keyof typeof Ionicons.glyphMap }> = {
+  home: { active: 'home', idle: 'home-outline' },
+  history: { active: 'document-text', idle: 'document-text-outline' },
+  charity: { active: 'gift', idle: 'gift-outline' },
+  notifications: { active: 'notifications', idle: 'notifications-outline' },
+  personal: { active: 'person', idle: 'person-outline' },
+};
+
+function TabIcon({ name, focused, color }: { name: TabName; focused: boolean; color: string }) {
+  return (
+    <View style={[styles.iconPill, focused && styles.iconPillActive]}>
+      <Ionicons name={focused ? icons[name].active : icons[name].idle} size={22} color={color} />
+    </View>
+  );
+}
 
 export default function TabsLayout() {
-  const unreadQuery = useUnreadNotificationCount();
-  const unread = unreadQuery.data ?? 0;
+  const insets = useSafeAreaInsets();
+  const unread = useUnreadNotificationCount().data ?? 0;
+  // One guard for the whole group, instead of one per tab.
+  useOngoingOrderGuard();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.grey,
-        tabBarLabelStyle: {
-          fontFamily: fonts.medium,
-          fontSize: 10,
-        },
+        tabBarActiveTintColor: colors.primaryAction,
+        tabBarInactiveTintColor: colors.textFaint,
+        tabBarHideOnKeyboard: true,
+        tabBarLabelStyle: styles.label,
         tabBarStyle: {
-          height: Platform.OS === 'ios' ? 82 : 64,
-          paddingTop: 6,
-          paddingBottom: Platform.OS === 'ios' ? 26 : 8,
-          borderTopColor: colors.border,
+          height: control.tabBarHeight + insets.bottom,
+          paddingTop: spacing.xxs,
           backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          elevation: 0,
+          ...styles.barShadow,
         },
       }}
     >
@@ -31,12 +52,8 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: 'Trang chủ',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={24}
-              color={color as string}
-            />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="home" focused={focused} color={color as string} />
           ),
         }}
       />
@@ -44,12 +61,8 @@ export default function TabsLayout() {
         name="history"
         options={{
           title: 'Lịch sử',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'document-text' : 'document-text-outline'}
-              size={24}
-              color={color as string}
-            />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="history" focused={focused} color={color as string} />
           ),
         }}
       />
@@ -57,12 +70,8 @@ export default function TabsLayout() {
         name="charity"
         options={{
           title: 'Quyên góp',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'gift' : 'gift-outline'}
-              size={24}
-              color={color as string}
-            />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="charity" focused={focused} color={color as string} />
           ),
         }}
       />
@@ -70,14 +79,10 @@ export default function TabsLayout() {
         name="notifications"
         options={{
           title: 'Thông báo',
-          tabBarBadge: unread > 0 ? unread : undefined,
-          tabBarBadgeStyle: { fontSize: 9 },
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'notifications' : 'notifications-outline'}
-              size={24}
-              color={color as string}
-            />
+          tabBarBadge: unread > 0 ? (unread > 99 ? '99+' : unread) : undefined,
+          tabBarBadgeStyle: styles.badge,
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="notifications" focused={focused} color={color as string} />
           ),
         }}
       />
@@ -85,15 +90,42 @@ export default function TabsLayout() {
         name="personal"
         options={{
           title: 'Cá nhân',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={24}
-              color={color as string}
-            />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="personal" focused={focused} color={color as string} />
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  barShadow: {
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowColor: colors.black,
+  },
+  iconPill: {
+    minWidth: 44,
+    height: 26,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconPillActive: { backgroundColor: colors.primaryFaint },
+  label: {
+    fontFamily: fonts.medium,
+    fontSize: type.caption.fontSize,
+    letterSpacing: 0.1,
+  },
+  badge: {
+    fontFamily: fonts.semibold,
+    fontSize: 10,
+    lineHeight: 13,
+    minHeight: 16,
+    minWidth: 16,
+    backgroundColor: colors.dangerFill,
+    color: colors.textOnPrimary,
+  },
+});

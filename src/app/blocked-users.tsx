@@ -13,11 +13,13 @@ import {
 } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { colors, fonts, hitSlop, radius, spacing } from '@/theme';
 
 export default function BlockedUsersScreen() {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { gutter, contentStyle } = useResponsive();
 
   const blockedQuery = useQuery({
     queryKey: queryKeys.blockedUsers,
@@ -53,7 +55,9 @@ export default function BlockedUsersScreen() {
         <FlatList
           data={blocked}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          style={contentStyle}
+          contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <BlockedRow
               entry={item}
@@ -76,20 +80,25 @@ function BlockedRow({
   disabled: boolean;
   onUnblock: () => void;
 }) {
+  const { type } = useResponsive();
   return (
     <View style={styles.row}>
       <Avatar uri={entry.user.avatarUrl ?? ''} name={entry.user.name} size={44} />
       <View style={styles.rowBody}>
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={[styles.name, type.bodySmallMedium]} numberOfLines={1}>
           {entry.user.name}
         </Text>
-        <Text style={styles.meta} numberOfLines={1}>
+        <Text style={[styles.meta, type.bodySmall]} numberOfLines={1}>
           {entry.expiresAt
             ? `Hết hạn ${formatDateTime(entry.expiresAt)}`
             : 'Chặn vĩnh viễn'}
         </Text>
       </View>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Bỏ chặn ${entry.user.name}`}
+        accessibilityState={{ disabled }}
+        hitSlop={hitSlop.md}
         disabled={disabled}
         onPress={onUnblock}
         style={({ pressed }) => [
@@ -105,39 +114,36 @@ function BlockedRow({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  list: { padding: spacing.md, gap: spacing.sm },
+  safe: { flex: 1, backgroundColor: colors.background },
+  list: { paddingVertical: spacing.sm, gap: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.sm,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
   },
-  rowBody: { flex: 1, gap: 2 },
-  name: {
-    fontFamily: fonts.medium,
-    fontSize: 15,
-    color: colors.text,
-  },
-  meta: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.textMuted,
-  },
+  rowBody: { flex: 1, gap: 2, minWidth: 0 },
+  name: { color: colors.text },
+  meta: { color: colors.textMuted },
   unblock: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    minHeight: 36,
     borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primaryFaint,
+    flexShrink: 0,
   },
   unblockText: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.primary,
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.primaryInk,
   },
   pressed: { opacity: 0.65 },
   disabled: { opacity: 0.5 },

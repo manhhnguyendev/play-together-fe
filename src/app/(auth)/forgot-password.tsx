@@ -1,9 +1,11 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { authService } from '@/api/services/auth';
 import { AuthShell } from '@/components/auth/AuthShell';
-import { Button, TextField, useToast } from '@/components/ui';
+import { FieldAction } from '@/components/auth/FieldAction';
+import { Button, TextField, type TextFieldHandle, useToast } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useOtpCooldown } from '@/hooks/useOtpCooldown';
 import { passwordResetDraft } from '@/features/auth/passwordResetDraft';
 import {
   isSixDigitOtp,
@@ -11,10 +13,10 @@ import {
   OTP_LENGTH,
   validateEmail,
 } from '@/lib/validators';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, hitSlop, spacing } from '@/theme';
 
 export default function ForgotPasswordScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
 
   const [email, setEmail] = useState('');
@@ -27,10 +29,13 @@ export default function ForgotPasswordScreen() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
+  const otpRef = useRef<TextFieldHandle>(null);
+  const cooldown = useOtpCooldown();
+
   const requestOtp = async () => {
     const emailValidation = validateEmail(email);
     setEmailError(emailValidation);
-    if (emailValidation) return;
+    if (emailValidation || cooldown.waiting || sendingOtp) return;
 
     setSendingOtp(true);
     try {
@@ -42,6 +47,8 @@ export default function ForgotPasswordScreen() {
       setVerified(false);
       setResetToken(null);
       setOtp('');
+      cooldown.start();
+      otpRef.current?.focus();
       if (result.devCode) {
         toast.show(`Môi trường DEV - mã OTP: ${result.devCode}`, 'info');
       } else {
@@ -57,12 +64,12 @@ export default function ForgotPasswordScreen() {
     }
   };
 
-  const verifyOtp = async () => {
+  const verify = async (code: string) => {
     if (!otpSent) {
       toast.show('Vui lòng lấy mã OTP trước', 'error');
       return;
     }
-    if (!isSixDigitOtp(otp)) {
+    if (!isSixDigitOtp(code)) {
       setOtpError(messages.otpNull);
       return;
     }
@@ -72,7 +79,7 @@ export default function ForgotPasswordScreen() {
       const result = await authService.verifyOtp(
         email.trim(),
         'PASSWORD_RESET',
-        otp,
+        code,
       );
       setOtpError(null);
       setResetToken(result.resetToken ?? null);
@@ -86,6 +93,15 @@ export default function ForgotPasswordScreen() {
     } finally {
       setVerifying(false);
     }
+  };
+
+  const onOtpChange = (raw: string) => {
+    const next = raw.replace(/[^0-9]/g, '').slice(0, OTP_LENGTH);
+    setOtp(next);
+    setVerified(false);
+    setResetToken(null);
+    setOtpError(null);
+    if (next.length === OTP_LENGTH && otpSent) void verify(next);
   };
 
   const submit = () => {
@@ -110,71 +126,92 @@ export default function ForgotPasswordScreen() {
       subtitle="Xác thực email để tạo mật khẩu mới"
       showBack
     >
-      <View style={styles.row}>
-        <TextField
-          containerStyle={styles.rowField}
-          label="Email"
-          leftIcon="mail-outline"
-          placeholder="Nhập vào email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          error={emailError}
-          onChangeText={(value) => {
-            setEmail(value);
-            setOtpSent(false);
-            setVerified(false);
-            setResetToken(null);
-            if (emailError) setEmailError(null);
-          }}
-        />
-        <Button
-          label="Lấy mã OTP"
-          size="sm"
-          variant="secondary"
-          fullWidth={false}
-          loading={sendingOtp}
-          onPress={requestOtp}
-          style={styles.otpButton}
-        />
-      </View>
+      <TextField
+        variant="floating"
+        label="Email"
+        leftIcon="mail-outline"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoComplete="email"
+        returnKeyType="next"
+        blurOnSubmit={false}
+        onSubmitEditing={() => otpRef.current?.focus()}
+        value={email}
+        error={emailError}
+        onChangeText={(value) => {
+          setEmail(value);
+          setOtpSent(false);
+          setVerified(false);
+          setResetToken(null);
+          if (emailError) setEmailError(null);
+        }}
+        trailing={
+          <FieldAction
+            label={otpSent ? 'Gửi lại' : 'Gửi mã'}
+            onPress={requestOtp}
+            loading={sendingOtp}
+            disabled={cooldown.waiting}
+          />
+        }
+      />
 
-      <View style={styles.row}>
+      <View style={styles.otpBlock}>
         <TextField
-          containerStyle={styles.rowField}
+          variant="floating"
           label="Mã OTP"
           leftIcon="keypad-outline"
-          placeholder="Nhập vào mã OTP"
           keyboardType="number-pad"
           maxLength={OTP_LENGTH}
+          textContentType="oneTimeCode"
+          autoComplete="sms-otp"
+          returnKeyType="done"
+          inputRef={otpRef}
+          editable={otpSent}
           value={otp}
           error={otpError}
-          onChangeText={(value) => {
-            setOtp(value.replace(/[^0-9]/g, ''));
-            setVerified(false);
-            setResetToken(null);
-            if (otpError) setOtpError(null);
-          }}
+          onChangeText={onOtpChange}
+          trailing={
+            <FieldAction
+              label={verified ? 'Đã xác thực' : 'Xác thực'}
+              tone={verified ? 'success' : 'action'}
+              onPress={() => verify(otp)}
+              loading={verifying}
+              disabled={!otpSent || verified || otp.length < OTP_LENGTH}
+            />
+          }
         />
-        <Button
-          label={verified ? 'Đã xác thực' : 'Xác thực'}
-          size="sm"
-          variant={verified ? 'primary' : 'secondary'}
-          fullWidth={false}
-          disabled={verified}
-          loading={verifying}
-          onPress={verifyOtp}
-          style={styles.otpButton}
-        />
+
+        {otpSent ? (
+          cooldown.waiting ? (
+            <Text style={styles.cooldown}>
+              Gửi lại mã sau {cooldown.remaining}s
+            </Text>
+          ) : (
+            <Pressable
+              hitSlop={hitSlop.sm}
+              accessibilityRole="link"
+              accessibilityLabel="Gửi lại mã OTP"
+              onPress={requestOtp}
+            >
+              <Text style={styles.resendLink}>Chưa nhận được? Gửi lại mã</Text>
+            </Pressable>
+          )
+        ) : null}
       </View>
 
       <Button
         label="TIẾP TỤC"
         size="lg"
+        disabled={!verified || !resetToken}
         onPress={submit}
       />
 
-      <Pressable onPress={() => router.replace('/(auth)/login')}>
+      <Pressable
+        hitSlop={hitSlop.sm}
+        accessibilityRole="link"
+        accessibilityLabel="Quay lại đăng nhập"
+        onPress={() => router.replace('/(auth)/login')}
+      >
         <Text style={styles.loginLink}>
           Bạn đã có tài khoản? Quay lại đăng nhập
         </Text>
@@ -184,19 +221,26 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.xs,
+  otpBlock: { gap: spacing.xxs + 2 },
+  cooldown: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textMuted,
+    paddingVertical: 2,
   },
-  rowField: { flex: 1 },
-  otpButton: { height: 50, minWidth: 96 },
+  resendLink: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.primaryAction,
+    paddingVertical: 2,
+  },
   loginLink: {
     textAlign: 'center',
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 13,
-    color: colors.primaryDark,
-    textDecorationLine: 'underline',
+    color: colors.primaryAction,
     marginTop: spacing.xs,
   },
 });

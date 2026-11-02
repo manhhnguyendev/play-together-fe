@@ -1,7 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,10 +11,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ratingService } from '@/api/services/content';
 import { AppBar, Button, useToast } from '@/components/ui';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
+import { colors, control, fonts, hitSlop, radius, spacing, touchTarget } from '@/theme';
 
 const OTHER_REASON = 'other';
 
@@ -24,8 +28,10 @@ const REASONS = [
 ];
 
 export default function ReportCommentScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle } = useResponsive();
   const params = useLocalSearchParams<{ rateId?: string; name?: string }>();
   const rateId = typeof params.rateId === 'string' ? params.rateId : '';
   const [selected, setSelected] = useState<string | null>(null);
@@ -54,46 +60,61 @@ export default function ReportCommentScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Báo cáo bình luận này" />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.reasons}>
-          {REASONS.map((reason) => (
+        <ScrollView
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card} accessibilityRole="radiogroup">
+            {REASONS.map((reason) => (
+              <ReasonRow
+                key={reason}
+                label={reason}
+                selected={selected === reason}
+                onPress={() => setSelected(reason)}
+              />
+            ))}
             <ReasonRow
-              key={reason}
-              label={reason}
-              selected={selected === reason}
-              onPress={() => setSelected(reason)}
+              label="Lý do khác"
+              selected={selected === OTHER_REASON}
+              onPress={() => setSelected(OTHER_REASON)}
             />
-          ))}
-          <ReasonRow
-            label="Lý do khác"
-            selected={selected === OTHER_REASON}
-            onPress={() => setSelected(OTHER_REASON)}
-          />
-          {selected === OTHER_REASON ? (
-            <TextInput
-              value={customReason}
-              onChangeText={setCustomReason}
-              placeholder="Nhập lý do của bạn"
-              placeholderTextColor={colors.textFaint}
-              style={styles.input}
-              maxLength={500}
-            />
-          ) : null}
-        </View>
-      </ScrollView>
+            {selected === OTHER_REASON ? (
+              <TextInput
+                value={customReason}
+                onChangeText={setCustomReason}
+                placeholder="Nhập lý do của bạn"
+                placeholderTextColor={colors.textFaint}
+                accessibilityLabel="Nhập lý do của bạn"
+                style={styles.input}
+                maxLength={500}
+              />
+            ) : null}
+          </View>
+        </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          label="Tố cáo"
-          onPress={submit}
-          loading={reportMutation.isPending}
-          disabled={!rateId}
-        />
-      </View>
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: insets.bottom + spacing.sm },
+          ]}
+        >
+          <View style={styles.footerInner}>
+            <Button
+              label="Tố cáo"
+              size="lg"
+              onPress={submit}
+              loading={reportMutation.isPending}
+              disabled={!rateId}
+            />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -107,68 +128,100 @@ function ReasonRow({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { type } = useResponsive();
   return (
     <Pressable
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      hitSlop={hitSlop.sm}
       onPress={onPress}
-      style={({ pressed }) => [styles.reasonRow, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.reasonRow,
+        selected && styles.reasonRowSelected,
+        pressed && styles.pressed,
+      ]}
     >
       <View style={[styles.radio, selected && styles.radioSelected]}>
         {selected ? <View style={styles.radioDot} /> : null}
       </View>
-      <Text style={styles.reasonLabel}>{label}</Text>
+      <Text style={[styles.reasonLabel, type.body]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { padding: spacing.md },
-  reasons: { gap: spacing.xxs },
+  safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  scroll: {
+    paddingVertical: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.xxs,
+  },
   reasonRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    minHeight: touchTarget,
     paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radius.md,
   },
+  reasonRowSelected: { backgroundColor: colors.primaryFaint },
+  pressed: { opacity: 0.8 },
   radio: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radius.pill,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioSelected: { borderColor: colors.primary },
+  radioSelected: { borderColor: colors.primaryAction },
   radioDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryAction,
   },
   reasonLabel: {
     flex: 1,
-    fontFamily: fonts.regular,
-    fontSize: 15,
+    minWidth: 0,
     color: colors.text,
   },
   input: {
+    minHeight: control.inputHeight,
     marginTop: spacing.xs,
     marginLeft: 30,
-    minHeight: 46,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
     paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.text,
   },
   footer: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
+  },
+  footerInner: {
+    maxWidth: 420,
+    width: '100%',
+    alignSelf: 'center',
   },
 });

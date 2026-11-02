@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -24,9 +23,11 @@ import {
   LoadingView,
   RatingStars,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { formatDateTime } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, hitSlop, radius, spacing, touchTarget } from '@/theme';
 
 const VOTE_OPTIONS: { label: string; value: number }[] = [
   { label: 'Tất cả', value: 0 },
@@ -38,7 +39,8 @@ const VOTE_OPTIONS: { label: string; value: number }[] = [
 ];
 
 export default function RatingsScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
+  const { gutter, contentStyle, itemWidth } = useResponsive();
   const params = useLocalSearchParams<{ userId?: string; canReport?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId : '';
   const canReport = params.canReport === '1';
@@ -69,25 +71,28 @@ export default function RatingsScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Chi tiết đánh giá" />
 
-      {summaryQuery.data && summaryQuery.data.count > 0 ? (
-        <RatingSummaryCard summary={summaryQuery.data} />
-      ) : null}
+      <View
+        style={[
+          styles.header,
+          { paddingHorizontal: gutter },
+          contentStyle,
+        ]}
+      >
+        {summaryQuery.data && summaryQuery.data.count > 0 ? (
+          <RatingSummaryCard summary={summaryQuery.data} />
+        ) : null}
 
-      <View style={styles.filterWrap}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
+        <View style={styles.filterRow}>
           {VOTE_OPTIONS.map((option) => (
-            <Chip
-              key={option.value}
-              label={option.label}
-              selected={vote === option.value}
-              onPress={() => changeVote(option.value)}
-            />
+            <View key={option.value} style={{ width: itemWidth(150, spacing.sm) }}>
+              <Chip
+                label={option.label}
+                selected={vote === option.value}
+                onPress={() => changeVote(option.value)}
+              />
+            </View>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       {ratingsQuery.isLoading ? (
@@ -104,7 +109,9 @@ export default function RatingsScreen() {
         <FlatList
           data={ratings}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          style={contentStyle}
+          contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <RatingCard
               rating={item}
@@ -120,12 +127,15 @@ export default function RatingsScreen() {
           ListFooterComponent={
             hasNext ? (
               <View style={styles.footer}>
-                <Button
-                  label="Tải thêm"
-                  variant="secondary"
-                  loading={ratingsQuery.isFetching}
-                  onPress={() => setPageSize((value) => value + 10)}
-                />
+                <View style={styles.footerInner}>
+                  <Button
+                    label="Tải thêm"
+                    variant="secondary"
+                    size="md"
+                    loading={ratingsQuery.isFetching}
+                    onPress={() => setPageSize((value) => value + 10)}
+                  />
+                </View>
               </View>
             ) : undefined
           }
@@ -136,37 +146,55 @@ export default function RatingsScreen() {
 }
 
 function RatingSummaryCard({ summary }: { summary: RatingSummary }) {
+  const { type } = useResponsive();
   const max = Math.max(...Object.values(summary.distribution), 1);
 
   return (
-    <View style={styles.summary}>
-      <View style={styles.summaryScore}>
-        <Text style={styles.summaryAverage}>{summary.average.toFixed(1)}</Text>
-        <RatingStars value={Math.round(summary.average)} size={14} />
-        <Text style={styles.summaryCount}>{summary.count} đánh giá</Text>
-      </View>
-      <View style={styles.summaryBars}>
-        {([5, 4, 3, 2, 1] as const).map((star) => {
-          const count =
-            summary.distribution[
-              String(star) as keyof RatingSummary['distribution']
-            ];
-          return (
-            <View key={star} style={styles.summaryBarRow}>
-              <Text style={styles.summaryBarLabel}>{star}</Text>
-              <Ionicons name="star" size={11} color={colors.gold} />
-              <View style={styles.summaryBarTrack}>
-                <View
-                  style={[
-                    styles.summaryBarFill,
-                    { width: `${Math.round((count / max) * 100)}%` },
-                  ]}
-                />
+    <View
+      style={styles.card}
+      accessibilityRole="summary"
+      accessibilityLabel={`Trung bình ${summary.average.toFixed(
+        1,
+      )} trên 5 sao, ${summary.count} đánh giá`}
+    >
+      <View style={styles.summary}>
+        <View style={styles.summaryScore}>
+          <Text style={[styles.summaryAverage, type.title1]}>
+            {summary.average.toFixed(1)}
+          </Text>
+          <RatingStars value={Math.round(summary.average)} size={14} />
+          <Text style={[styles.summaryCount, type.caption]}>
+            {summary.count} đánh giá
+          </Text>
+        </View>
+        <View style={styles.summaryBars}>
+          {([5, 4, 3, 2, 1] as const).map((star) => {
+            const count =
+              summary.distribution[
+                String(star) as keyof RatingSummary['distribution']
+              ];
+            return (
+              <View
+                key={star}
+                style={styles.summaryBarRow}
+                accessibilityRole="text"
+                accessibilityLabel={`${star} sao: ${count} đánh giá`}
+              >
+                <Text style={[styles.summaryBarLabel, type.caption]}>{star}</Text>
+                <Ionicons name="star" size={11} color={colors.gold} />
+                <View style={styles.summaryBarTrack}>
+                  <View
+                    style={[
+                      styles.summaryBarFill,
+                      { width: `${Math.round((count / max) * 100)}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.summaryBarCount, type.caption]}>{count}</Text>
               </View>
-              <Text style={styles.summaryBarCount}>{count}</Text>
-            </View>
-          );
-        })}
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -181,8 +209,9 @@ function RatingCard({
   canReport: boolean;
   onReport: () => void;
 }) {
+  const { type } = useResponsive();
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, styles.ratingCard]}>
       <View style={styles.avatarWrap}>
         {rating.user?.avatar ? (
           <Image
@@ -192,56 +221,69 @@ function RatingCard({
           />
         ) : (
           <View style={styles.avatarFallback}>
-            <Ionicons name="person" size={20} color={colors.primaryDark} />
+            <Ionicons name="person" size={20} color={colors.primaryInk} />
           </View>
         )}
       </View>
 
       <View style={styles.cardBody}>
         <View style={styles.cardHeader}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, type.title3]} numberOfLines={1}>
             {rating.user?.name ?? 'Người chơi'}
           </Text>
           {canReport ? (
-            <Pressable hitSlop={8} onPress={onReport}>
-              <Ionicons
-                name="flag-outline"
-                size={18}
-                color={colors.textMuted}
-              />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Báo cáo bình luận của ${
+                rating.user?.name ?? 'Người chơi'
+              }`}
+              hitSlop={hitSlop.sm}
+              onPress={onReport}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons name="flag-outline" size={19} color={colors.textMuted} />
             </Pressable>
           ) : null}
         </View>
         <RatingStars value={rating.rate} size={14} />
-        <Text style={styles.date}>{formatDateTime(rating.createdDate)}</Text>
-        <Text style={styles.comment}>{rating.comment}</Text>
+        <Text style={[styles.date, type.caption]}>
+          {formatDateTime(rating.createdDate)}
+        </Text>
+        <Text style={[styles.comment, type.body]}>{rating.comment}</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: {
+    paddingTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
   summary: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
   },
-  summaryScore: { alignItems: 'center', gap: 4, width: 96 },
-  summaryAverage: {
-    fontFamily: fonts.bold,
-    fontSize: 30,
-    color: colors.text,
+  summaryScore: {
+    alignItems: 'center',
+    gap: 4,
+    width: 96,
   },
-  summaryCount: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  summaryBars: { flex: 1, gap: 3, justifyContent: 'center' },
+  summaryAverage: { color: colors.text },
+  summaryCount: { color: colors.textMuted },
+  summaryBars: { flex: 1, gap: 5, minWidth: 0 },
   summaryBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,79 +291,68 @@ const styles = StyleSheet.create({
   },
   summaryBarLabel: {
     width: 10,
-    fontFamily: fonts.regular,
-    fontSize: 11,
     color: colors.textMuted,
     textAlign: 'right',
   },
   summaryBarTrack: {
     flex: 1,
     height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.background,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceMuted,
     overflow: 'hidden',
   },
   summaryBarFill: {
     height: '100%',
-    borderRadius: 3,
-    backgroundColor: colors.gold,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryAction,
   },
   summaryBarCount: {
     width: 24,
-    fontFamily: fonts.regular,
-    fontSize: 11,
     color: colors.textMuted,
     textAlign: 'right',
   },
-  filterWrap: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    paddingVertical: spacing.sm,
-  },
   filterRow: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
-  },
-  list: { padding: spacing.md, gap: spacing.sm, paddingBottom: spacing.xxl },
-  card: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  list: {
     paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    gap: spacing.sm,
+    paddingBottom: spacing.xxl,
+  },
+  ratingCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
   avatarWrap: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: radius.pill,
     overflow: 'hidden',
     backgroundColor: colors.primarySoft,
   },
   avatar: { width: '100%', height: '100%' },
   avatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  cardBody: { flex: 1, gap: 3 },
+  cardBody: { flex: 1, gap: 3, minWidth: 0 },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  name: {
-    flex: 1,
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-    color: colors.text,
+  name: { flex: 1, color: colors.text, minWidth: 0 },
+  iconButton: {
+    width: touchTarget,
+    height: touchTarget,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  date: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.textFaint,
-  },
-  comment: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.text,
-  },
+  pressed: { opacity: 0.6, backgroundColor: colors.surfaceMuted },
+  date: { color: colors.textFaint },
+  comment: { color: colors.text, marginTop: 2 },
   footer: { paddingTop: spacing.md },
+  footerInner: { maxWidth: 320, width: '100%', alignSelf: 'center' },
 });

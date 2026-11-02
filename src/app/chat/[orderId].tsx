@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   FlatList,
@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chatService } from '@/api/services/content';
 import { orderService } from '@/api/services/orders';
 import type { ChatModel } from '@/api/types';
@@ -23,15 +23,19 @@ import {
   LoadingView,
   useToast,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { initialsOf } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, control, fonts, hitSlop, radius, spacing, touchTarget } from '@/theme';
 
 export default function ChatScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const { gutter, type } = useResponsive();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const orderId = typeof params.orderId === 'string' ? params.orderId : '';
   const currentUser = useAuthStore((state) => state.user);
@@ -96,16 +100,21 @@ export default function ChatScreen() {
   }
 
   const chats = chatsQuery.data ?? [];
+  const canSend = Boolean(message.trim()) && !sendMutation.isPending;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.appBar}>
         <Pressable
-          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại"
+          hitSlop={hitSlop.sm}
           onPress={() => router.back()}
-          style={({ pressed }) => [styles.back, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [styles.back, pressed && styles.pressed]}
         >
-          <Ionicons name="chevron-back" size={24} color={colors.white} />
+          <View style={styles.iconCircle}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </View>
         </Pressable>
         <View style={styles.avatarWrap}>
           {otherUser.avatar ? (
@@ -113,6 +122,7 @@ export default function ChatScreen() {
               source={{ uri: otherUser.avatar }}
               style={styles.avatar}
               contentFit="cover"
+              transition={140}
             />
           ) : (
             <View style={styles.avatarFallback}>
@@ -122,7 +132,7 @@ export default function ChatScreen() {
             </View>
           )}
         </View>
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={[styles.name, type.title3]} numberOfLines={1}>
           {otherUser.name}
         </Text>
       </View>
@@ -147,8 +157,10 @@ export default function ChatScreen() {
             data={[...chats].reverse()}
             inverted
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
+            style={styles.list}
+            contentContainerStyle={[styles.listContent, { paddingHorizontal: gutter }]}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <ChatBubble
                 chat={item}
@@ -160,10 +172,13 @@ export default function ChatScreen() {
           />
         )}
 
-        <View style={styles.inputBar}>
+        <View
+          style={[styles.inputBar, { paddingBottom: insets.bottom + spacing.sm }]}
+        >
           <TextInput
             value={message}
             onChangeText={setMessage}
+            accessibilityLabel="Nhập tin nhắn"
             placeholder="Nhập tin nhắn"
             placeholderTextColor={colors.textFaint}
             style={styles.input}
@@ -171,16 +186,22 @@ export default function ChatScreen() {
             maxLength={500}
           />
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Gửi tin nhắn"
+            accessibilityState={{ disabled: !canSend }}
             onPress={send}
-            disabled={!message.trim() || sendMutation.isPending}
+            disabled={!canSend}
             style={({ pressed }) => [
               styles.sendButton,
-              (!message.trim() || sendMutation.isPending) &&
-                styles.sendButtonDisabled,
-              pressed && { opacity: 0.8 },
+              !canSend && styles.sendButtonDisabled,
+              pressed && canSend && styles.pressed,
             ]}
           >
-            <Ionicons name="send" size={18} color={colors.white} />
+            <Ionicons
+              name="send"
+              size={20}
+              color={canSend ? colors.textOnPrimary : colors.textFaint}
+            />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -199,11 +220,14 @@ function ChatBubble({
   avatar: string;
   name: string;
 }) {
+  const { type, width } = useResponsive();
+  const bubbleMaxWidth = Math.round(width * 0.78);
+
   if (isMine) {
     return (
       <View style={[styles.bubbleRow, styles.bubbleRowMine]}>
-        <View style={[styles.bubble, styles.bubbleMine]}>
-          <Text style={styles.bubbleTextMine}>{chat.message}</Text>
+        <View style={[styles.bubble, styles.bubbleMine, { maxWidth: bubbleMaxWidth }]}>
+          <Text style={[styles.bubbleTextMine, type.bodySmall]}>{chat.message}</Text>
         </View>
       </View>
     );
@@ -217,13 +241,14 @@ function ChatBubble({
             source={{ uri: avatar }}
             style={styles.avatar}
             contentFit="cover"
+            transition={140}
           />
         ) : (
           <Text style={styles.bubbleAvatarText}>{initialsOf(name)}</Text>
         )}
       </View>
-      <View style={[styles.bubble, styles.bubbleOther]}>
-        <Text style={styles.bubbleTextOther}>{chat.message}</Text>
+      <View style={[styles.bubble, styles.bubbleOther, { maxWidth: bubbleMaxWidth }]}>
+        <Text style={[styles.bubbleTextOther, type.bodySmall]}>{chat.message}</Text>
       </View>
     </View>
   );
@@ -236,40 +261,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.primary,
+    minHeight: control.appBarHeight,
+    backgroundColor: colors.surface,
+    paddingLeft: spacing.xs,
+    paddingRight: spacing.sm,
     paddingVertical: spacing.xs,
-    paddingRight: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.primaryDark,
+    borderBottomColor: colors.border,
   },
   back: {
-    width: 40,
-    height: 40,
+    width: touchTarget,
+    height: touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarWrap: {
+  iconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+  },
+  pressed: { opacity: 0.6 },
+  avatarWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: colors.primarySoft,
   },
   avatar: { width: '100%', height: '100%' },
   avatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   avatarFallbackText: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    color: colors.white,
+    fontSize: 13,
+    color: colors.primaryInk,
   },
   name: {
     flex: 1,
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    color: colors.white,
+    color: colors.text,
   },
-  list: {
-    padding: spacing.md,
+  list: { flex: 1 },
+  listContent: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
     gap: spacing.sm,
   },
   bubbleRow: {
@@ -281,7 +317,7 @@ const styles = StyleSheet.create({
   bubbleAvatar: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radius.pill,
     overflow: 'hidden',
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
@@ -290,65 +326,57 @@ const styles = StyleSheet.create({
   bubbleAvatarText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: colors.primaryDark,
+    color: colors.primaryInk,
   },
   bubble: {
-    maxWidth: '78%',
     paddingHorizontal: spacing.sm,
     paddingVertical: 8,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
   },
   bubbleMine: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryFill,
     borderBottomRightRadius: 4,
   },
   bubbleOther: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     borderBottomLeftRadius: 4,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  bubbleTextMine: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.white,
-  },
-  bubbleTextOther: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.text,
-  },
+  bubbleTextMine: { color: colors.textOnPrimary },
+  bubbleTextOther: { color: colors.text },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingTop: spacing.xs,
     backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
   input: {
     flex: 1,
-    minHeight: 42,
-    maxHeight: 110,
+    minHeight: control.inputHeight,
+    maxHeight: 116,
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.background,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 21,
     color: colors.text,
   },
   sendButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryFill,
   },
   sendButtonDisabled: { backgroundColor: colors.primarySoft },
 });

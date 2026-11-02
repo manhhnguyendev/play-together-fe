@@ -52,14 +52,22 @@ export function CancelOrderDialog({
         style={styles.backdrop}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-        <View style={styles.dialog}>
-          <Text style={styles.title}>{title}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Đóng hộp thoại"
+          style={StyleSheet.absoluteFill}
+          onPress={close}
+        />
+        <View style={styles.dialog} accessibilityViewIsModal>
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
           <TextField
+            variant="floating"
+            label="Lý do"
             value={reason}
             onChangeText={setReason}
             placeholder={placeholder}
-            containerStyle={styles.field}
             maxLength={500}
             multiline
           />
@@ -106,7 +114,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: colors.text,
   },
-  field: { marginTop: spacing.xxs },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

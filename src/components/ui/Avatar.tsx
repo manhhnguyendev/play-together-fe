@@ -9,6 +9,8 @@ interface AvatarProps {
   size?: number;
   borderWidth?: number;
   borderColor?: string;
+  /** Square-ish tile instead of a circle, for player cards. */
+  squared?: boolean;
 }
 
 export function Avatar({
@@ -16,16 +18,18 @@ export function Avatar({
   name,
   size = 48,
   borderWidth = 0,
-  borderColor = colors.white,
+  borderColor = colors.surface,
+  squared = false,
 }: AvatarProps) {
   return (
     <View
+      accessibilityLabel={name ? `Ảnh đại diện của ${name}` : 'Ảnh đại diện'}
       style={[
         styles.container,
         {
           width: size,
           height: size,
-          borderRadius: size / 2,
+          borderRadius: squared ? size * 0.28 : size / 2,
           borderWidth,
           borderColor,
         },
@@ -51,7 +55,7 @@ const styles = StyleSheet.create({
   },
   image: { width: '100%', height: '100%' },
   initials: {
-    fontFamily: fonts.semibold,
-    color: colors.primaryDark,
+    fontFamily: fonts.bold,
+    color: colors.primaryInk,
   },
 });

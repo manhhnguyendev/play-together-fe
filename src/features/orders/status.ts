@@ -1,12 +1,14 @@
 import type { OrderModel } from '@/api/types';
-import { toLegacyOrderStatus } from '@/api/v2/mappers';
+import { toLegacyOrderStatus, toWireOrderStatus } from '@/api/v2/mappers';
 import type { OrderStatus } from '@/api/v2/types';
 import { addHours, isEmptyDate } from '@/lib/format';
 import { colors } from '@/theme';
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
   Processing: 'Đang thuê',
+  Scheduled: 'Đã hẹn',
   Starting: 'Đang xử lý',
+  Disputed: 'Chờ đối soát',
   Finish: 'Hoàn thành',
   Complete: 'Hoàn thành',
   Cancel: 'Hủy yêu cầu',
@@ -19,7 +21,9 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
 
 const ORDER_STATUS_COLORS: Record<string, string> = {
   Processing: colors.danger,
+  Scheduled: colors.warning,
   Starting: colors.warning,
+  Disputed: colors.warning,
   Finish: colors.success,
   Complete: colors.success,
   'Hirer Finish Soon': colors.success,
@@ -64,6 +68,32 @@ export const isFinishedOrderStatus = (status?: string | null): boolean =>
     'Hirer Finish Soon',
     'Player Finish Soon',
   ].includes(status ?? '');
+
+/**
+ * The session is over but the payout has not been released: a participant can
+ * confirm it, object to it, or wait for the objection window to close.
+ */
+export const isAwaitingReconciliation = (order: Pick<OrderModel, 'status'>): boolean =>
+  toLegacyOrderStatus(order.status as OrderStatus) === 'Disputed';
+
+/** Accepted in advance, not started yet: cancellable, and the slot is held. */
+export const isBookedSession = (order: Pick<OrderModel, 'status'>): boolean =>
+  toLegacyOrderStatus(order.status as OrderStatus) === 'Scheduled';
+
+/** The session is running right now, so the parties belong in the stage screen. */
+export const isLiveSession = (order: Pick<OrderModel, 'status'>): boolean =>
+  toLegacyOrderStatus(order.status as OrderStatus) === 'Starting';
+
+/**
+ * The session actually took place, so a party can report it. A cancelled or
+ * rejected booking never gets here — there was nothing to witness.
+ */
+export const isFeedbackOpenOrder = (order: Pick<OrderModel, 'status'>): boolean =>
+  ['DISPUTED', 'SETTLED', 'ENDED_EARLY'].includes(toWireOrderStatus(order.status) ?? '');
+
+export const reconciliationDeadline = (
+  order: Pick<OrderModel, 'disputeDeadlineAt'>,
+): string | null => (isEmptyDate(order.disputeDeadlineAt) ? null : order.disputeDeadlineAt);
 
 export const orderHirerFinalPrice = (
   order: Pick<OrderModel, 'finalPrices' | 'percentSub'>,

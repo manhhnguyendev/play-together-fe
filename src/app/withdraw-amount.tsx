@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -9,20 +8,27 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { userService } from '@/api/services/users';
-import { AppBar, Button, TextField, useToast } from '@/components/ui';
+import { AppBar, Button, FLOAT_BAND_STYLE, TextField, useToast } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { formatNumber, parseAmount } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 const MIN_WITHDRAW = 10000;
 const MAX_WITHDRAW = 50000000;
 
 export default function WithdrawAmountScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, type } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? '';
   const [moneyText, setMoneyText] = useState('');
@@ -50,6 +56,13 @@ export default function WithdrawAmountScreen() {
       toast.show('Số tiền rút tối đa là 50.000.000đ', 'error');
       return;
     }
+    // A failed balance read leaves a possibly stale number on screen. Letting
+    // the request through would either reject it with a misleading "not enough"
+    // or start a withdrawal against money that may no longer be there.
+    if (balanceQuery.isError) {
+      toast.show('Không kiểm tra được số dư. Hãy thử tải lại.', 'error');
+      return;
+    }
     if (activeBalance < amount) {
       toast.show('Số dư khả dụng không đủ!', 'error');
       return;
@@ -61,37 +74,66 @@ export default function WithdrawAmountScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Rút tiền" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.amountRow}>
-            <TextField
-              value={moneyText}
-              onChangeText={(value) =>
-                setMoneyText(
-                  parseAmount(value) ? formatNumber(parseAmount(value)) : '',
-                )
-              }
-              keyboardType="number-pad"
-              placeholder="Nhập số tiền"
-              maxLength={11}
-              containerStyle={styles.amountInput}
-            />
-            <Text style={styles.unit}>đ</Text>
+          <View style={styles.card}>
+            <View style={styles.amountRow}>
+              <TextField
+                value={moneyText}
+                onChangeText={(value) =>
+                  setMoneyText(
+                    parseAmount(value) ? formatNumber(parseAmount(value)) : '',
+                  )
+                }
+                keyboardType="number-pad"
+                label="Số tiền"
+                variant="floating"
+                maxLength={11}
+                containerStyle={styles.amountInput}
+              />
+              <Text style={[type.body, styles.unit]}>đ</Text>
+            </View>
           </View>
-          <Text style={styles.balance}>
-            Số dư khả dụng: {formatNumber(activeBalance)} đ
-          </Text>
+
+          <View style={styles.balancePanel}>
+            <Text style={[styles.balanceLabel, type.overline]}>
+              Số dư khả dụng
+            </Text>
+            <Text style={[styles.balance, type.bodyMedium]}>
+              {formatNumber(activeBalance)} đ
+            </Text>
+            {balanceQuery.isError ? (
+              <View style={styles.balanceNoticeRow}>
+                <Text style={styles.balanceNotice}>
+                  Không kiểm tra được số dư mới nhất.
+                </Text>
+                <Button
+                  label="Thử lại"
+                  variant="outline"
+                  size="sm"
+                  fullWidth={false}
+                  onPress={() => void balanceQuery.refetch()}
+                />
+              </View>
+            ) : null}
+          </View>
         </ScrollView>
-        <View style={styles.footer}>
-          <Button label="Rút tiền" size="lg" onPress={submit} />
+        <View
+          style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}
+        >
+          <View style={styles.footerInner}>
+            <Button label="Rút tiền" size="lg" onPress={submit} />
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -99,35 +141,59 @@ export default function WithdrawAmountScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
-    paddingTop: spacing.xl,
-    gap: spacing.md,
   },
   amountRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  amountInput: { flex: 1 },
-  unit: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.text,
+  amountInput: { flex: 1, minWidth: 0 },
+  unit: { ...FLOAT_BAND_STYLE, color: colors.text },
+  balancePanel: {
+    alignItems: 'center',
+    gap: spacing.xxs,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primaryFaint,
   },
-  balance: {
+  balanceLabel: { color: colors.primaryAction },
+  balance: { color: colors.primaryInk },
+  balanceNoticeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  balanceNotice: {
     fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.danger,
   },
   footer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  footerInner: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

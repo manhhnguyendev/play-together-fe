@@ -1,19 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { GetAllUserModel } from '@/api/types';
 import { playerStatusColor } from '@/features/discovery/status';
+import { useAppRouter } from '@/hooks/useAppRouter';
 import { formatNumber, initialsOf } from '@/lib/format';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 interface PlayerCardProps {
   player: GetAllUserModel;
-  width?: number;
+  width: number;
 }
 
-export function PlayerCard({ player, width = 150 }: PlayerCardProps) {
-  const router = useRouter();
+export function PlayerCard({ player, width }: PlayerCardProps) {
+  const router = useAppRouter();
   const hasStatus = ['Online', 'Offline', 'Hiring', 'Processing'].includes(
     player.status,
   );
@@ -21,6 +21,8 @@ export function PlayerCard({ player, width = 150 }: PlayerCardProps) {
   return (
     <Pressable
       onPress={() => router.push(`/player/${player.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`${player.name}, ${formatNumber(player.pricePerHour)}đ mỗi giờ`}
       style={({ pressed }) => [{ width }, pressed && styles.pressed]}
     >
       <View style={[styles.imageWrap, { width, height: width }]}>
@@ -76,7 +78,7 @@ const styles = StyleSheet.create({
   fallbackText: {
     fontFamily: fonts.bold,
     fontSize: 30,
-    color: colors.primaryDark,
+    color: colors.primaryInk,
   },
   nameRow: {
     flexDirection: 'row',

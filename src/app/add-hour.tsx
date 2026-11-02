@@ -1,11 +1,22 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { datingService } from '@/api/services/catalog';
 import { AppBar, Button, Chip, useToast } from '@/components/ui';
 import { TimeRangeFields } from '@/components/hours/TimeRangeFields';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import {
   isValidTimeRange,
   toMinuteOfDay,
@@ -13,12 +24,14 @@ import {
 } from '@/features/hours/time';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 export default function AddHourScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, type } = useResponsive();
   const userId = useAuthStore((state) => state.user?.id ?? '');
   const [dayInWeek, setDayInWeek] = useState(1);
   const [fromHour, setFromHour] = useState('');
@@ -76,68 +89,93 @@ export default function AddHourScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Thêm giờ" />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text style={styles.label}>Chọn ngày trong tuần:</Text>
-        <View style={styles.days}>
-          {WEEK_DAYS.map((day) => (
-            <Chip
-              key={day.day}
-              label={day.label}
-              selected={dayInWeek === day.day}
-              onPress={() => setDayInWeek(day.day)}
+        <ScrollView
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.card}>
+            <Text style={[styles.sectionTitle, type.title3]}>
+              Chọn ngày trong tuần:
+            </Text>
+            <View style={styles.days}>
+              {WEEK_DAYS.map((day) => (
+                <Chip
+                  key={day.day}
+                  label={day.label}
+                  selected={dayInWeek === day.day}
+                  onPress={() => setDayInWeek(day.day)}
+                />
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.card}>
+            <TimeRangeFields
+              fromHour={fromHour}
+              fromMinute={fromMinute}
+              toHour={toHour}
+              toMinute={toMinute}
+              onChange={(part, value) => {
+                if (part === 'fromHour') setFromHour(value);
+                if (part === 'fromMinute') setFromMinute(value);
+                if (part === 'toHour') setToHour(value);
+                if (part === 'toMinute') setToMinute(value);
+              }}
             />
-          ))}
+          </View>
+        </ScrollView>
+
+        <View
+          style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}
+        >
+          <View style={styles.footerInner}>
+            <Button
+              label="Thêm mới"
+              size="lg"
+              onPress={() => void submit()}
+              loading={submitting}
+            />
+          </View>
         </View>
-
-        <TimeRangeFields
-          fromHour={fromHour}
-          fromMinute={fromMinute}
-          toHour={toHour}
-          toMinute={toMinute}
-          onChange={(part, value) => {
-            if (part === 'fromHour') setFromHour(value);
-            if (part === 'fromMinute') setFromMinute(value);
-            if (part === 'toHour') setToHour(value);
-            if (part === 'toMinute') setToMinute(value);
-          }}
-        />
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <Button
-          label="Thêm mới"
-          onPress={() => void submit()}
-          loading={submitting}
-        />
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   scroll: {
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     paddingBottom: spacing.xl,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  label: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
-    color: colors.text,
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
+  sectionTitle: { color: colors.text },
   days: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   footer: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  footerInner: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

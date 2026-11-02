@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import {
   FlatList,
@@ -18,19 +18,28 @@ import {
   ErrorView,
   LoadingView,
 } from '@/components/ui';
-import { formatDateTimeAmPm } from '@/lib/format';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatDateTime } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, hitSlop, radius, spacing, touchTarget } from '@/theme';
 
 const statusOf = (value: number) => {
-  if (value === 1) return { label: 'Đã duyệt', color: colors.success };
-  if (value === 0) return { label: 'Bị từ chối', color: colors.danger };
-  return { label: 'Chờ xét duyệt', color: colors.warning };
+  if (value === 1)
+    return { label: 'Đã duyệt', color: colors.success, background: colors.successSoft };
+  if (value === 0)
+    return { label: 'Bị từ chối', color: colors.danger, background: colors.dangerSoft };
+  return {
+    label: 'Chờ xét duyệt',
+    color: colors.warning,
+    background: colors.warningSoft,
+  };
 };
 
 export default function FeedbackListScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const queryClient = useQueryClient();
+  const { gutter, contentStyle } = useResponsive();
 
   const feedbackQuery = useQuery({
     queryKey: queryKeys.feedbacks,
@@ -51,11 +60,16 @@ export default function FeedbackListScreen() {
         title="Trung tâm phản hồi"
         right={
           <Pressable
-            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Tạo phản hồi"
+            hitSlop={hitSlop.sm}
             onPress={() => router.push('/feedback-create')}
-            style={({ pressed }) => pressed && styles.pressed}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="add" size={26} color={colors.text} />
+            <Ionicons name="add" size={24} color={colors.text} />
           </Pressable>
         }
       />
@@ -74,7 +88,9 @@ export default function FeedbackListScreen() {
         <FlatList
           data={feedbacks}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          style={contentStyle}
+          contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <FeedbackRow
               feedback={item}
@@ -94,33 +110,64 @@ function FeedbackRow({
   feedback: SystemFeedbackModel;
   onPress: () => void;
 }) {
+  const { type } = useResponsive();
   const status = statusOf(feedback.isApprove);
   return (
     <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`${feedback.title}, ${status.label}`}
+      accessibilityHint="Mở chi tiết phản hồi"
+      hitSlop={hitSlop.sm}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        pressed && styles.pressed,
+      ]}
     >
       <View style={styles.rowTop}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, type.title3]} numberOfLines={2}>
           {feedback.title}
         </Text>
-        <Text style={[styles.status, { color: status.color }]}>
-          {status.label}
-        </Text>
+        <View
+          style={[styles.statusPill, { backgroundColor: status.background }]}
+        >
+          <Text
+            style={[styles.status, type.caption, { color: status.color }]}
+            numberOfLines={1}
+          >
+            {status.label}
+          </Text>
+        </View>
       </View>
-      <Text style={styles.date}>{formatDateTimeAmPm(feedback.createdDate)}</Text>
-      <View style={styles.divider} />
+      <Text style={[styles.date, type.caption]}>
+        {formatDateTime(feedback.createdDate)}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  pressed: { opacity: 0.65 },
-  list: { paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  row: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+  safe: { flex: 1, backgroundColor: colors.background },
+  pressed: { opacity: 0.75 },
+  iconButton: {
+    width: touchTarget,
+    height: touchTarget,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  list: {
+    paddingVertical: spacing.sm,
+    paddingBottom: spacing.xxl,
+    gap: spacing.sm,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.xxs,
   },
   rowTop: {
     flexDirection: 'row',
@@ -130,23 +177,15 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontFamily: fonts.medium,
-    fontSize: 16,
+    minWidth: 0,
     color: colors.text,
   },
-  status: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
+  statusPill: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    maxWidth: 130,
   },
-  date: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginTop: spacing.sm,
-  },
+  status: { textAlign: 'center' },
+  date: { color: colors.textMuted },
 });

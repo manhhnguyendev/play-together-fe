@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { userService } from '@/api/services/users';
 import type { GetAllUserModel } from '@/api/types';
 import { playerStatusColor } from '@/features/discovery/status';
+import { useAppRouter } from '@/hooks/useAppRouter';
 import { formatNumber, initialsOf } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -15,7 +15,7 @@ interface PlayerRowCardProps {
 }
 
 export function PlayerRowCard({ player }: PlayerRowCardProps) {
-  const router = useRouter();
+  const router = useAppRouter();
 
   const gamesQuery = useQuery({
     queryKey: queryKeys.gamesOfUser(player.id),
@@ -31,6 +31,8 @@ export function PlayerRowCard({ player }: PlayerRowCardProps) {
   return (
     <Pressable
       onPress={() => router.push(`/player/${player.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`${player.name}, ${formatNumber(player.pricePerHour)}đ mỗi giờ`}
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
     >
       <View style={styles.avatarWrap}>
@@ -93,18 +95,19 @@ export function PlayerRowCard({ player }: PlayerRowCardProps) {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     flexDirection: 'row',
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    padding: spacing.sm,
     backgroundColor: colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  pressed: { opacity: 0.8 },
+  pressed: { backgroundColor: colors.surfaceMuted },
   avatarWrap: {
-    width: 84,
-    height: 84,
+    width: 76,
+    height: 76,
     borderRadius: radius.md,
     overflow: 'hidden',
     backgroundColor: colors.primarySoft,
@@ -113,13 +116,13 @@ const styles = StyleSheet.create({
   avatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   avatarFallbackText: {
     fontFamily: fonts.bold,
-    fontSize: 24,
-    color: colors.primaryDark,
+    fontSize: 22,
+    color: colors.primaryAction,
   },
-  info: { flex: 1, justifyContent: 'space-between' },
+  info: { flex: 1, minWidth: 0, justifyContent: 'space-between' },
   name: {
     fontFamily: fonts.semibold,
-    fontSize: 17,
+    fontSize: 16,
     color: colors.text,
   },
   games: {
@@ -132,12 +135,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.xs,
     marginTop: 4,
   },
   price: {
     fontFamily: fonts.bold,
-    fontSize: 16,
-    color: colors.primaryDark,
+    fontSize: 15,
+    color: colors.primaryInk,
   },
   rating: {
     flexDirection: 'row',
@@ -156,7 +160,7 @@ const styles = StyleSheet.create({
   },
   status: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
   },
 });

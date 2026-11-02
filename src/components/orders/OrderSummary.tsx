@@ -79,32 +79,45 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: spacing.md },
-  rows: { paddingVertical: spacing.sm, gap: 2 },
+  container: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.xxs,
+  },
+  rows: { gap: 2 },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: spacing.md,
     paddingVertical: 7,
   },
   rowLabel: {
     fontFamily: fonts.regular,
-    fontSize: 15,
-    color: colors.textMuted,
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   rowValue: {
     flex: 1,
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 15,
     color: colors.text,
     textAlign: 'right',
   },
-  block: { paddingVertical: spacing.xs, gap: 4 },
+  block: {
+    paddingVertical: spacing.xs,
+    gap: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    marginTop: spacing.xxs,
+  },
   blockLabel: {
     fontFamily: fonts.medium,
-    fontSize: 15,
-    color: colors.text,
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   bullet: {
     fontFamily: fonts.regular,
@@ -113,11 +126,12 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.xs,
   },
   messageBox: {
-    minHeight: 96,
+    minHeight: 88,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     padding: spacing.sm,
+    backgroundColor: colors.background,
   },
   messageText: {
     fontFamily: fonts.regular,

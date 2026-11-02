@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { orderService } from '@/api/services/orders';
 import { CancelOrderDialog } from '@/components/orders/CancelOrderDialog';
 import {
@@ -11,6 +14,7 @@ import {
   Button,
   ErrorView,
   LoadingView,
+  SectionHeader,
   useToast,
 } from '@/components/ui';
 import {
@@ -18,19 +22,32 @@ import {
   orderExpectedEnd,
   orderGameNames,
 } from '@/features/orders/status';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useCountdown } from '@/hooks/useCountdown';
+import { useResponsive } from '@/hooks/useResponsive';
 import {
   formatCountdownShort,
-  formatDateTimeAmPm,
+  formatDateTime,
   formatVnd,
+  isEmptyDate,
 } from '@/lib/format';
-import { useCountdown } from '@/hooks/useCountdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { colors, fonts, radius, spacing } from '@/theme';
 
+/**
+ * Accepting an instant hire starts the session; accepting a booking only holds
+ * the slot, which belongs on the order screen where it can still be cancelled.
+ */
+function sessionRouteFor(status: string): '/end-order/[orderId]' | '/hiring-stage/[orderId]' {
+  return status === 'Scheduled' ? '/end-order/[orderId]' : '/hiring-stage/[orderId]';
+}
+
 export default function ReceiveRequestScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, type, isSmall } = useResponsive();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const orderId = typeof params.orderId === 'string' ? params.orderId : '';
 
@@ -55,7 +72,7 @@ export default function ReceiveRequestScreen() {
     onSuccess: (updated) => {
       queryClient.setQueryData(queryKeys.order(updated.id), updated);
       router.replace({
-        pathname: '/hiring-stage/[orderId]',
+        pathname: sessionRouteFor(updated.status),
         params: { orderId: updated.id },
       });
     },
@@ -82,9 +99,9 @@ export default function ReceiveRequestScreen() {
 
   useEffect(() => {
     if (!order) return;
-    if (order.status === 'Starting') {
+    if (order.status === 'Starting' || order.status === 'Scheduled') {
       router.replace({
-        pathname: '/hiring-stage/[orderId]',
+        pathname: sessionRouteFor(order.status),
         params: { orderId: order.id },
       });
     } else if (order.status !== 'Processing' && isFinishedOrderStatus(order.status)) {
@@ -124,63 +141,92 @@ export default function ReceiveRequestScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Bạn nhận được yêu cầu thuê" />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Avatar uri={order.user?.avatar} name={order.user?.name} size={110} />
-          <View style={styles.headerInfo}>
-            <Text style={styles.requesterName} numberOfLines={1}>
-              {order.user?.name ?? 'Người thuê'}
+        <View style={[styles.column, contentStyle]}>
+          <View style={styles.countdownCard}>
+            <Text style={styles.countdownLabel}>Yêu cầu sẽ bị hủy sau</Text>
+            <Text style={[styles.countdownValue, type.display]}>
+              {formatCountdownShort(remaining)}
             </Text>
-            <InfoLine label="Thời lượng:" value={`${order.totalTimes} giờ`} />
-            <InfoLine label="Chi phí:" value={formatVnd(order.totalPrices)} />
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.requesterRow}>
+              <Avatar
+                uri={order.user?.avatar}
+                name={order.user?.name ?? ''}
+                size={isSmall ? 56 : 64}
+              />
+              <View style={styles.requesterInfo}>
+                <Text style={styles.requesterName} numberOfLines={1}>
+                  {order.user?.name ?? 'Người thuê'}
+                </Text>
+                <Text style={styles.requesterHint}>Muốn thuê bạn</Text>
+              </View>
+              <Text style={styles.offerPrice}>{formatVnd(order.totalPrices)}</Text>
+            </View>
+            <View style={styles.divider} />
+            <InfoLine label="Thời lượng" value={`${order.totalTimes} giờ`} />
+            {!isEmptyDate(order.timeStart) ? (
+              <InfoLine
+                label="Bắt đầu lúc"
+                value={formatDateTime(order.timeStart)}
+              />
+            ) : null}
             <InfoLine
-              label="Dự kiến kết thúc:"
-              value={formatDateTimeAmPm(expectedEnd)}
+              label="Dự kiến kết thúc"
+              value={formatDateTime(expectedEnd)}
             />
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tựa game đã chọn:</Text>
-          {games.map((name, index) => (
-            <Text key={`${name}-${index}`} style={styles.bullet}>
-              • {name}
-            </Text>
-          ))}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Lời nhắn:</Text>
-          <View style={styles.messageBox}>
-            <Text style={styles.messageText}>{order.message || '—'}</Text>
+          <View style={styles.card}>
+            <SectionHeader title="Tựa game đã chọn" icon="game-controller-outline" />
+            {games.map((name, index) => (
+              <View key={`${name}-${index}`} style={styles.bulletRow}>
+                <View style={styles.bulletDot} />
+                <Text style={styles.bullet}>{name}</Text>
+              </View>
+            ))}
           </View>
-        </View>
 
-        <View style={styles.countdownBlock}>
-          <Text style={styles.countdownLabel}>Yêu cầu sẽ bị hủy sau</Text>
-          <Text style={styles.countdownValue}>
-            {formatCountdownShort(remaining)}
-          </Text>
+          <View style={styles.card}>
+            <SectionHeader title="Lời nhắn" icon="chatbubble-ellipses-outline" />
+            <View style={styles.messageBox}>
+              <Text style={styles.messageText}>{order.message || '—'}</Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          label="Từ chối"
-          variant="secondary"
-          fullWidth={false}
-          style={styles.footerButton}
-          onPress={() => setRejectOpen(true)}
-        />
-        <Button
-          label="Chấp nhận"
-          fullWidth={false}
-          style={styles.footerButton}
-          loading={acceptMutation.isPending}
-          onPress={() => acceptMutation.mutate()}
-        />
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingHorizontal: gutter,
+            paddingBottom: insets.bottom + spacing.sm,
+          },
+        ]}
+      >
+        <View style={[styles.footerRow, contentStyle]}>
+          <View style={styles.footerButton}>
+            <Button
+              label="Từ chối"
+              variant="secondary"
+              size="md"
+              onPress={() => setRejectOpen(true)}
+            />
+          </View>
+          <View style={styles.footerButton}>
+            <Button
+              label="Chấp nhận"
+              size="md"
+              loading={acceptMutation.isPending}
+              onPress={() => acceptMutation.mutate()}
+            />
+          </View>
+        </View>
       </View>
 
       <CancelOrderDialog
@@ -205,63 +251,111 @@ function InfoLine({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { paddingBottom: spacing.xl },
-  header: {
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm, gap: spacing.sm },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: 2,
+  },
+  countdownCard: {
+    alignItems: 'center',
+    gap: 6,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primaryFaint,
+  },
+  countdownLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: colors.primaryAction,
+  },
+  countdownValue: {
+    fontFamily: fonts.bold,
+    color: colors.primaryInk,
+    letterSpacing: 0.5,
+  },
+  requesterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
+    gap: spacing.sm,
   },
-  headerInfo: { flex: 1, gap: 2 },
+  requesterInfo: { flex: 1, minWidth: 0, gap: 2 },
   requesterName: {
-    fontFamily: fonts.semibold,
-    fontSize: 19,
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    letterSpacing: -0.2,
     color: colors.text,
-    marginBottom: spacing.xxs,
+  },
+  requesterHint: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  offerPrice: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    color: colors.primaryInk,
+    marginLeft: spacing.xs,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
   },
   infoLine: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    paddingVertical: 5,
+    paddingVertical: 7,
   },
   infoLabel: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   infoValue: {
     flex: 1,
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 14,
     color: colors.text,
     textAlign: 'right',
   },
-  section: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    gap: 4,
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: 3,
   },
-  sectionTitle: {
-    fontFamily: fonts.medium,
-    fontSize: 15,
-    color: colors.text,
+  bulletDot: {
+    width: 5,
+    height: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryMuted,
   },
   bullet: {
+    flex: 1,
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.text,
-    paddingLeft: spacing.xs,
   },
   messageBox: {
-    minHeight: 130,
+    minHeight: 110,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     padding: spacing.sm,
     marginTop: spacing.xxs,
+    backgroundColor: colors.background,
   },
   messageText: {
     fontFamily: fonts.regular,
@@ -269,32 +363,12 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.text,
   },
-  countdownBlock: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    marginTop: spacing.md,
-  },
-  countdownLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.textMuted,
-  },
-  countdownValue: {
-    fontFamily: fonts.bold,
-    fontSize: 40,
-    color: colors.text,
-  },
   footer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
-  footerButton: { flex: 1 },
+  footerRow: { flexDirection: 'row', gap: spacing.sm },
+  footerButton: { flex: 1, minWidth: 0 },
 });

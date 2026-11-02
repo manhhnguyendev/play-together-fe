@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { authService } from '@/api/services/auth';
@@ -6,17 +5,19 @@ import { AuthShell } from '@/components/auth/AuthShell';
 import {
   Button,
   DatePickerField,
+  FLOAT_BOX_HEIGHT,
   SelectField,
   TextField,
   useToast,
 } from '@/components/ui';
 import { registerDraft } from '@/features/auth/registerDraft';
+import { useAppRouter } from '@/hooks/useAppRouter';
 import { PROVINCE_OPTIONS } from '@/lib/provinces';
 import { messages } from '@/lib/validators';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, fonts, hitSlop, radius, spacing } from '@/theme';
 
 export default function CompleteRegisterScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const draft = registerDraft.get();
 
@@ -90,10 +91,12 @@ export default function CompleteRegisterScreen() {
       showBack
     >
       <TextField
+        variant="floating"
         label="Tên"
         leftIcon="person-outline"
-        placeholder="Tên của bạn"
         maxLength={30}
+        returnKeyType="done"
+        onSubmitEditing={submit}
         value={name}
         error={errors.name}
         onChangeText={(value) => {
@@ -103,8 +106,9 @@ export default function CompleteRegisterScreen() {
       />
 
       <SelectField
-        label="Thành phố của bạn"
-        placeholder="Thành phố của bạn"
+        variant="floating"
+        label="Thành phố"
+        placeholder="Chọn thành phố"
         value={city}
         options={PROVINCE_OPTIONS}
         error={errors.city}
@@ -115,8 +119,9 @@ export default function CompleteRegisterScreen() {
       />
 
       <DatePickerField
-        label="Sinh nhật của bạn"
-        placeholder="Ngày sinh của bạn"
+        variant="floating"
+        label="Ngày sinh"
+        placeholder="Chọn ngày"
         value={birthday}
         error={errors.birthday}
         onChange={(date) => {
@@ -136,6 +141,9 @@ export default function CompleteRegisterScreen() {
             return (
               <Pressable
                 key={option.label}
+                accessibilityRole="radio"
+                accessibilityLabel={option.label}
+                accessibilityState={{ selected: active }}
                 onPress={() => setGender(option.value)}
                 style={[styles.genderOption, active && styles.genderOptionActive]}
               >
@@ -160,7 +168,12 @@ export default function CompleteRegisterScreen() {
         onPress={submit}
       />
 
-      <Pressable onPress={() => router.replace('/(auth)/login')}>
+      <Pressable
+        hitSlop={hitSlop.sm}
+        accessibilityRole="link"
+        accessibilityLabel="Quay lại đăng nhập"
+        onPress={() => router.replace('/(auth)/login')}
+      >
         <Text style={styles.loginLink}>
           Bạn đã có tài khoản? Quay lại đăng nhập
         </Text>
@@ -172,10 +185,11 @@ export default function CompleteRegisterScreen() {
 const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 6,
-    letterSpacing: 0.2,
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.textSecondary,
+    letterSpacing: 0.3,
+    marginBottom: spacing.xxs,
   },
   genderRow: {
     flexDirection: 'row',
@@ -183,18 +197,20 @@ const styles = StyleSheet.create({
   },
   genderOption: {
     flex: 1,
-    height: 50,
-    borderWidth: 1,
+    // Same height as the floating fields above it, so the block reads as one rhythm.
+    height: FLOAT_BOX_HEIGHT,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
   },
   genderOptionActive: {
-    borderColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder,
     backgroundColor: colors.primaryFaint,
   },
   radio: {
@@ -202,32 +218,31 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioActive: { borderColor: colors.primary },
+  radioActive: { borderColor: colors.primaryAction },
   radioDot: {
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryAction,
   },
   genderLabel: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   genderLabelActive: {
-    fontFamily: fonts.medium,
-    color: colors.primaryDark,
+    fontFamily: fonts.semibold,
+    color: colors.primaryInk,
   },
   loginLink: {
     textAlign: 'center',
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 13,
-    color: colors.primaryDark,
-    textDecorationLine: 'underline',
+    color: colors.primaryAction,
     marginTop: spacing.xs,
   },
 });

@@ -105,32 +105,60 @@ export const toLegacyUserStatus = (status?: string | null): string =>
   (status && USER_STATUS_LABELS[status as UserStatus]) || status || '';
 
 const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  PROCESSING: 'Processing',
-  ACCEPTED: 'Starting',
-  COMPLETED: 'Finish',
-  CANCELLED: 'Cancel',
-  REJECTED: 'Reject',
+  PROPOSED: 'Processing',
+  SCHEDULED: 'Scheduled',
+  LIVE: 'Starting',
+  DISPUTED: 'Disputed',
+  ENDED_EARLY: 'Finish',
+  SETTLED: 'Finish',
+  CLOSED: 'Cancel',
+};
+
+/**
+ * The API used to encode these outcomes in the status itself. It now reports a
+ * lifecycle stage plus a separate reason, so the legacy screens — which had a
+ * distinct label and colour for each outcome — keep working without ten screens
+ * having to learn about the split.
+ */
+const CLOSED_LABEL_BY_REASON: Record<string, string> = {
+  REJECTED_BY_PLAYER: 'Reject',
+  CANCELLED_BY_HIRER: 'Cancel',
   EXPIRED: 'OverTime',
-  ENDED_EARLY_BY_HIRER: 'Hirer Finish Soon',
-  ENDED_EARLY_BY_PLAYER: 'Player Finish Soon',
-  INTERRUPTED: 'Interrupt',
+  INTERRUPTED_BY_ADMIN: 'Interrupt',
+};
+
+const ENDED_EARLY_LABEL_BY_PARTY: Record<string, string> = {
+  HIRER: 'Hirer Finish Soon',
+  PLAYER: 'Player Finish Soon',
+};
+
+export const toLegacyOrderStatus = (
+  status: OrderStatus,
+  detail?: Pick<OrderView, 'closeReason' | 'endedEarlyBy'>,
+): string => {
+  if (status === 'CLOSED') {
+    return CLOSED_LABEL_BY_REASON[detail?.closeReason ?? ''] ?? 'Cancel';
+  }
+  if (status === 'ENDED_EARLY') {
+    return ENDED_EARLY_LABEL_BY_PARTY[detail?.endedEarlyBy ?? ''] ?? 'Finish';
+  }
+  return ORDER_STATUS_LABELS[status] ?? status;
 };
 
 const ORDER_STATUS_WIRE: Record<string, OrderStatus> = {
-  Processing: 'PROCESSING',
-  Starting: 'ACCEPTED',
-  Finish: 'COMPLETED',
-  Complete: 'COMPLETED',
-  Cancel: 'CANCELLED',
-  Reject: 'REJECTED',
-  OverTime: 'EXPIRED',
-  'Hirer Finish Soon': 'ENDED_EARLY_BY_HIRER',
-  'Player Finish Soon': 'ENDED_EARLY_BY_PLAYER',
-  Interrupt: 'INTERRUPTED',
+  Processing: 'PROPOSED',
+  Scheduled: 'SCHEDULED',
+  Starting: 'LIVE',
+  Disputed: 'DISPUTED',
+  Finish: 'SETTLED',
+  Complete: 'SETTLED',
+  Cancel: 'CLOSED',
+  Reject: 'CLOSED',
+  OverTime: 'CLOSED',
+  Interrupt: 'CLOSED',
+  'Hirer Finish Soon': 'ENDED_EARLY',
+  'Player Finish Soon': 'ENDED_EARLY',
 };
-
-export const toLegacyOrderStatus = (status: OrderStatus): string =>
-  ORDER_STATUS_LABELS[status] ?? status;
 
 export const toWireOrderStatus = (status?: string | null): OrderStatus | undefined => {
   if (!status) return undefined;
@@ -309,11 +337,13 @@ export const toLegacyOrder = (order: OrderView): OrderModel => {
     totalTimes: order.hours,
     totalPrices: order.totalPrice,
     finalPrices,
-    status: toLegacyOrderStatus(order.status),
+    status: toLegacyOrderStatus(order.status, order),
     timeStart: order.startsAt ?? ZERO_DATE,
     timeFinish: order.scheduledEndAt ?? ZERO_DATE,
     processExpired: order.respondBy,
     percentSub: feeRatio,
+    disputeDeadlineAt: order.disputeDeadlineAt,
+    canRate: order.canRate,
   };
 };
 
@@ -367,6 +397,7 @@ export const toLegacyNotification = (
   body: notification.body,
   createdDate: notification.createdAt,
   status: notification.status,
+  referenceUrl: notification.referenceUrl ?? null,
 });
 
 export const toLegacyChat = (message: ChatMessageView): ChatModel => ({

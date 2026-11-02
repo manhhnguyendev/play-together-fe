@@ -1,16 +1,19 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { authService } from '@/api/services/auth';
 import { AuthShell } from '@/components/auth/AuthShell';
+import { PasswordRules } from '@/components/auth/PasswordRules';
 import { Button, TextField, useToast } from '@/components/ui';
 import { passwordResetDraft } from '@/features/auth/passwordResetDraft';
 import {
   validateConfirmPassword,
   validateStrongPassword,
 } from '@/lib/validators';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { spacing } from '@/theme';
 
 export default function ChangePasswordScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const draft = passwordResetDraft.get();
 
@@ -70,26 +73,36 @@ export default function ChangePasswordScreen() {
       subtitle={draft.email}
       showBack
     >
+      <View style={styles.group}>
+        <TextField
+          variant="floating"
+          label="Mật khẩu mới"
+          leftIcon="lock-closed-outline"
+          secure
+          autoCapitalize="none"
+          textContentType="newPassword"
+          autoComplete="new-password"
+          autoFocus
+          value={password}
+          error={passwordError}
+          onChangeText={(value) => {
+            setPassword(value);
+            if (passwordError) setPasswordError(null);
+          }}
+        />
+        <PasswordRules value={password} />
+      </View>
+
       <TextField
-        label="Mật khẩu mới"
+        variant="floating"
+        label="Nhập lại mật khẩu"
         leftIcon="lock-closed-outline"
-        placeholder="Nhập vào mật khẩu mới"
         secure
         autoCapitalize="none"
-        value={password}
-        error={passwordError}
-        hint="8-30 kí tự, gồm chữ hoa, chữ thường, số và kí tự đặc biệt"
-        onChangeText={(value) => {
-          setPassword(value);
-          if (passwordError) setPasswordError(null);
-        }}
-      />
-      <TextField
-        label="Nhập lại mật khẩu mới"
-        leftIcon="lock-closed-outline"
-        placeholder="Nhập lại mật khẩu mới"
-        secure
-        autoCapitalize="none"
+        textContentType="newPassword"
+        autoComplete="new-password"
+        returnKeyType="done"
+        onSubmitEditing={submit}
         value={confirmPassword}
         error={confirmError}
         onChangeText={(value) => {
@@ -106,3 +119,7 @@ export default function ChangePasswordScreen() {
     </AuthShell>
   );
 }
+
+const styles = StyleSheet.create({
+  group: { gap: spacing.xs },
+});

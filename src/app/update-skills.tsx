@@ -1,8 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { gameOfUserService, gameService } from '@/api/services/catalog';
 import { userService } from '@/api/services/users';
@@ -14,12 +20,21 @@ import {
   SelectField,
   useToast,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, radius, spacing } from '@/theme';
+import {
+  colors,
+  hitSlop,
+  radius,
+  spacing,
+  touchTarget,
+} from '@/theme';
 
 export default function UpdateSkillsScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
+  const { gutter, contentStyle, itemWidth, type } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? '';
 
@@ -36,8 +51,14 @@ export default function UpdateSkillsScreen() {
       <AppBar
         title="Chỉnh sửa kỹ năng"
         right={
-          <Pressable hitSlop={10} onPress={() => router.push('/add-skill')}>
-            <Ionicons name="add" size={26} color={colors.text} />
+          <Pressable
+            hitSlop={hitSlop.md}
+            onPress={() => router.push('/add-skill')}
+            accessibilityRole="button"
+            accessibilityLabel="Thêm kỹ năng"
+            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
+          >
+            <Ionicons name="add" size={24} color={colors.primaryAction} />
           </Pressable>
         }
       />
@@ -48,20 +69,24 @@ export default function UpdateSkillsScreen() {
         <ErrorView onRetry={() => gamesQuery.refetch()} />
       ) : (
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
           showsVerticalScrollIndicator={false}
         >
           {games.length === 0 ? (
-            <Text style={styles.empty}>Không có dữ liệu</Text>
+            <Text style={[styles.empty, type.body]}>Không có dữ liệu</Text>
           ) : (
-            games.map((game) => (
-              <SkillRow
-                key={game.id}
-                userId={userId}
-                game={game}
-                canDelete={!user?.isPlayer || games.length > 1}
-              />
-            ))
+            <View style={styles.grid}>
+              {games.map((game) => (
+                <SkillRow
+                  key={game.id}
+                  style={{ width: itemWidth(320, spacing.sm) }}
+                  userId={userId}
+                  game={game}
+                  canDelete={!user?.isPlayer || games.length > 1}
+                />
+              ))}
+            </View>
           )}
         </ScrollView>
       )}
@@ -73,13 +98,16 @@ function SkillRow({
   userId,
   game,
   canDelete,
+  style,
 }: {
   userId: string;
   game: GameOfUserModel;
   canDelete: boolean;
+  style?: ViewStyle;
 }) {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { type } = useResponsive();
   const hasRank = game.rankId !== 'None';
   const [rankOverride, setRankOverride] = useState<{
     gameId: string;
@@ -150,69 +178,87 @@ function SkillRow({
   };
 
   return (
-    <View style={styles.skillRow}>
-      <Text style={styles.gameName} numberOfLines={2}>
-        {game.game?.name}
-      </Text>
+    <View style={[styles.card, style]}>
+      <View style={styles.cardHeader}>
+        <Text style={[styles.gameName, type.bodyMedium]} numberOfLines={2}>
+          {game.game?.name}
+        </Text>
+        <Pressable
+          hitSlop={hitSlop.sm}
+          disabled={busy}
+          onPress={() => void remove()}
+          accessibilityRole="button"
+          accessibilityLabel={`Xóa kỹ năng ${game.game?.name ?? ''}`}
+          accessibilityState={{ disabled: busy }}
+          style={({ pressed }) => [
+            styles.deleteButton,
+            busy && styles.disabled,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Ionicons name="trash-outline" size={19} color={colors.danger} />
+        </Pressable>
+      </View>
       {hasRank ? (
-        <View style={styles.rankField}>
-          <SelectField
-            placeholder="Chọn rank"
-            value={rankId}
-            options={options}
-            onChange={(value) => void changeRank(value)}
-          />
-        </View>
-      ) : (
-        <View style={styles.rankField} />
-      )}
-      <Pressable
-        hitSlop={8}
-        disabled={busy}
-        onPress={() => void remove()}
-        style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
-      >
-        <Ionicons name="trash-outline" size={20} color={colors.textMuted} />
-      </Pressable>
+        <SelectField
+          variant="floating"
+          label="Rank"
+          placeholder="Chọn rank"
+          value={rankId}
+          options={options}
+          onChange={(value) => void changeRank(value)}
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: {
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.md, paddingBottom: spacing.xxl },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
-    paddingBottom: spacing.xxl,
     gap: spacing.sm,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  gameName: { flex: 1, minWidth: 0, color: colors.text },
+  addButton: {
+    width: touchTarget,
+    height: touchTarget,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryFaint,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  deleteButton: {
+    width: touchTarget,
+    height: touchTarget,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.dangerSoft,
+  },
+  disabled: { opacity: 0.5 },
+  pressed: { opacity: 0.7 },
   empty: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: spacing.xl,
   },
-  skillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  gameName: {
-    flex: 1,
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: colors.text,
-  },
-  rankField: { width: 138 },
-  deleteButton: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: { opacity: 0.6 },
 });

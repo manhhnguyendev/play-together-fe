@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -10,21 +9,28 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { userService } from '@/api/services/users';
-import { AppBar, Button, TextField, useToast } from '@/components/ui';
+import { AppBar, Button, FLOAT_BAND_STYLE, TextField, useToast } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { formatNumber, parseAmount } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 const MIN_DEPOSIT = 10000;
 const MAX_DEPOSIT = 50000000;
 
 export default function DepositScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { gutter, contentStyle, type } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const refreshUser = useAuthStore((state) => state.refreshUser);
   const [moneyText, setMoneyText] = useState('');
@@ -80,39 +86,48 @@ export default function DepositScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Thanh toán qua MOMO" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.amountRow}>
-            <TextField
-              value={moneyText}
-              onChangeText={(value) =>
-                setMoneyText(
-                  parseAmount(value) ? formatNumber(parseAmount(value)) : '',
-                )
-              }
-              keyboardType="number-pad"
-              placeholder="Nhập số tiền"
-              maxLength={11}
-              containerStyle={styles.amountInput}
-            />
-            <Text style={styles.unit}>đ</Text>
+          <View style={styles.card}>
+            <View style={styles.amountRow}>
+              <TextField
+                value={moneyText}
+                onChangeText={(value) =>
+                  setMoneyText(
+                    parseAmount(value) ? formatNumber(parseAmount(value)) : '',
+                  )
+                }
+                keyboardType="number-pad"
+                label="Số tiền"
+                variant="floating"
+                maxLength={11}
+                containerStyle={styles.amountInput}
+              />
+              <Text style={[type.body, styles.unit]}>đ</Text>
+            </View>
           </View>
         </ScrollView>
-        <View style={styles.footer}>
-          <Button
-            label="Nạp tiền"
-            size="lg"
-            loading={submitting}
-            onPress={() => void submit()}
-          />
+        <View
+          style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}
+        >
+          <View style={styles.footerInner}>
+            <Button
+              label="Nạp tiền"
+              size="lg"
+              loading={submitting}
+              onPress={() => void submit()}
+            />
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -120,28 +135,29 @@ export default function DepositScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
+  scroll: { flexGrow: 1, paddingTop: spacing.md, paddingBottom: spacing.md },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
-    paddingTop: spacing.xl,
   },
   amountRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  amountInput: { flex: 1 },
-  unit: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.text,
-  },
+  amountInput: { flex: 1, minWidth: 0 },
+  unit: { ...FLOAT_BAND_STYLE, color: colors.text },
   footer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  footerInner: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

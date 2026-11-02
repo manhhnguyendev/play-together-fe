@@ -13,8 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { gameService } from '@/api/services/catalog';
 import type { GamesModel } from '@/api/types';
 import { AppBar, ErrorView, LoadingView, useToast } from '@/components/ui';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, fonts, hitSlop, radius, spacing } from '@/theme';
 
 interface ToggleVariables {
   game: GamesModel;
@@ -24,6 +25,7 @@ interface ToggleVariables {
 export default function FavoriteGamesScreen() {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { gutter, contentStyle, type } = useResponsive();
 
   const gamesQuery = useQuery({
     queryKey: queryKeys.allGames,
@@ -96,53 +98,59 @@ export default function FavoriteGamesScreen() {
         <Text style={styles.empty}>Chưa có dữ liệu</Text>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.hint}>
-            Chọn những game bạn thích để chúng xuất hiện trong gợi ý và bộ lọc
-            tìm người chơi.
-          </Text>
+          <View style={[styles.column, contentStyle]}>
+            <Text style={[styles.hint, type.bodySmall]}>
+              Chọn những game bạn thích để chúng xuất hiện trong gợi ý và bộ lọc
+              tìm người chơi.
+            </Text>
 
-          {games.map((game) => {
-            const favorite = favoriteIds.has(game.id);
-            const label = game.displayName || game.name;
-            const busy = pendingGameId === game.id;
+            {games.map((game) => {
+              const favorite = favoriteIds.has(game.id);
+              const label = game.displayName || game.name;
+              const busy = pendingGameId === game.id;
 
-            return (
-              <Pressable
-                key={game.id}
-                disabled={busy}
-                onPress={() => toggle.mutate({ game, favorite })}
-                style={({ pressed }) => [
-                  styles.row,
-                  favorite && styles.rowActive,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View style={styles.rowText}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {label}
-                  </Text>
-                  {game.otherName ? (
-                    <Text style={styles.otherName} numberOfLines={1}>
-                      {game.otherName}
+              return (
+                <Pressable
+                  key={game.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  accessibilityState={{ selected: favorite, disabled: busy }}
+                  hitSlop={hitSlop.sm}
+                  disabled={busy}
+                  onPress={() => toggle.mutate({ game, favorite })}
+                  style={({ pressed }) => [
+                    styles.row,
+                    favorite && styles.rowActive,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View style={styles.rowText}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {label}
                     </Text>
-                  ) : null}
-                </View>
+                    {game.otherName ? (
+                      <Text style={styles.otherName} numberOfLines={1}>
+                        {game.otherName}
+                      </Text>
+                    ) : null}
+                  </View>
 
-                {busy ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Ionicons
-                    name={favorite ? 'heart' : 'heart-outline'}
-                    size={22}
-                    color={favorite ? colors.primary : colors.textFaint}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
+                  {busy ? (
+                    <ActivityIndicator size="small" color={colors.primaryAction} />
+                  ) : (
+                    <Ionicons
+                      name={favorite ? 'heart' : 'heart-outline'}
+                      size={22}
+                      color={favorite ? colors.primaryAction : colors.textFaint}
+                    />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -150,16 +158,10 @@ export default function FavoriteGamesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xxl,
-    gap: spacing.xs,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm, paddingBottom: spacing.xxl },
+  column: { gap: spacing.xs },
   hint: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 19,
     color: colors.textMuted,
     paddingVertical: spacing.xs,
   },
@@ -168,14 +170,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     minHeight: 52,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   rowActive: {
-    borderColor: colors.primary,
+    borderColor: colors.primaryBorder,
     backgroundColor: colors.primaryFaint,
   },
   rowText: { flex: 1, gap: 2 },

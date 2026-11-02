@@ -1,8 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { orderService } from '@/api/services/orders';
 import { CancelOrderDialog } from '@/components/orders/CancelOrderDialog';
 import { OrderParties } from '@/components/orders/OrderParties';
@@ -19,17 +22,21 @@ import {
   orderExpectedEnd,
   orderGameNames,
 } from '@/features/orders/status';
+import { useAppRouter } from '@/hooks/useAppRouter';
 import { useCountdown } from '@/hooks/useCountdown';
+import { useResponsive } from '@/hooks/useResponsive';
 import {
   formatCountdownShort,
-  formatDateTimeAmPm,
+  formatDateTime,
 } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function HiringNegotiatingScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, type } = useResponsive();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const orderId = typeof params.orderId === 'string' ? params.orderId : '';
 
@@ -101,34 +108,53 @@ export default function HiringNegotiatingScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Đang chờ chấp thuận..." />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
         showsVerticalScrollIndicator={false}
       >
-        <OrderParties left={order.user} right={order.toUser} />
+        <View style={[styles.column, contentStyle]}>
+          <View style={styles.statusCard}>
+            <View style={styles.pulse}>
+              <View style={styles.pulseDot} />
+            </View>
+            <Text style={styles.statusLabel}>
+              Đang chờ {order.toUser?.name ?? 'người chơi'} chấp thuận
+            </Text>
+            <Text style={[styles.countdownValue, type.display]}>
+              {formatCountdownShort(remaining)}
+            </Text>
+            <Text style={styles.countdownLabel}>Yêu cầu sẽ bị hủy sau</Text>
+          </View>
 
-        <OrderSummary
-          duration={order.totalTimes}
-          priceLabel="Tổng chi phí:"
-          price={order.totalPrices}
-          endLabel="Dự kiến kết thúc:"
-          endValue={formatDateTimeAmPm(orderExpectedEnd(order))}
-          games={orderGameNames(order)}
-        />
+          <OrderParties left={order.user} right={order.toUser} />
 
-        <View style={styles.countdownBlock}>
-          <Text style={styles.countdownLabel}>Yêu cầu sẽ bị hủy sau:</Text>
-          <Text style={styles.countdownValue}>
-            {formatCountdownShort(remaining)}
-          </Text>
+          <OrderSummary
+            duration={order.totalTimes}
+            priceLabel="Tổng chi phí:"
+            price={order.totalPrices}
+            endLabel="Dự kiến kết thúc:"
+            endValue={formatDateTime(orderExpectedEnd(order))}
+            games={orderGameNames(order)}
+          />
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          label="Hủy yêu cầu"
-          variant="danger"
-          onPress={() => setCancelOpen(true)}
-        />
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingHorizontal: gutter,
+            paddingBottom: insets.bottom + spacing.sm,
+          },
+        ]}
+      >
+        <View style={styles.footerRow}>
+          <Button
+            label="Hủy yêu cầu"
+            variant="danger"
+            size="md"
+            onPress={() => setCancelOpen(true)}
+          />
+        </View>
       </View>
 
       <CancelOrderDialog
@@ -144,31 +170,56 @@ export default function HiringNegotiatingScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { paddingBottom: spacing.xl },
-  countdownBlock: {
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm, gap: spacing.sm },
+  column: { gap: spacing.sm },
+  statusCard: {
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    marginTop: spacing.md,
+    gap: 6,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
   },
-  countdownLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.textMuted,
+  pulse: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryFaint,
+    marginBottom: spacing.xxs,
+  },
+  pulseDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.primaryAction,
+  },
+  statusLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.text,
+    textAlign: 'center',
   },
   countdownValue: {
     fontFamily: fonts.bold,
-    fontSize: 40,
-    color: colors.text,
+    color: colors.primaryInk,
+    letterSpacing: 1,
+    marginTop: spacing.xs,
+  },
+  countdownLabel: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.textMuted,
   },
   footer: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
+  footerRow: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

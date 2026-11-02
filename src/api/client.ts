@@ -1,5 +1,6 @@
 import { create, isAxiosError } from 'axios';
 import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
+import { vietnameseMessageFor } from '../lib/errorMessages';
 import { API_ROOT } from './endpoints';
 import type { ProblemDetails, TokenPair } from './v2/types';
 
@@ -132,6 +133,7 @@ const toApiError = (error: unknown): ApiError => {
         data.details?.errors?.[0] ??
         (data.errors ? Object.values(data.errors).flat()[0] : undefined);
       const message =
+        vietnameseMessageFor(data.code) ??
         validationMessage ??
         data.detail ??
         data.message ??

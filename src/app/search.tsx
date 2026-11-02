@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
@@ -19,13 +19,16 @@ import {
   useDiscoveryFilter,
 } from '@/features/discovery/filterStore';
 import type { DiscoveryFilters } from '@/features/discovery/filterStore';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, control, fonts, hitSlop, radius, spacing } from '@/theme';
 
 const INITIAL_PAGE_SIZE = 20;
 
 export default function SearchScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
+  const { gutter, contentStyle, columns } = useResponsive();
   const params = useLocalSearchParams<{ q?: string }>();
   const initialKeyword = typeof params.q === 'string' ? params.q : '';
 
@@ -130,13 +133,15 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={styles.appBar}>
+      <View style={[styles.appBar, { paddingHorizontal: gutter }]}>
         <Pressable
-          hitSlop={10}
+          hitSlop={hitSlop.md}
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại"
           onPress={() => router.back()}
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.back, pressed && styles.backPressed]}
         >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
+          <Ionicons name="chevron-back" size={20} color={colors.text} />
         </Pressable>
 
         <View style={styles.searchBox}>
@@ -145,49 +150,64 @@ export default function SearchScreen() {
             value={input}
             onChangeText={setInput}
             onSubmitEditing={submit}
-            placeholder="Tìm kiếm"
+            placeholder="Tìm người chơi, tựa game"
             placeholderTextColor={colors.textFaint}
+            accessibilityLabel="Từ khoá tìm kiếm"
             returnKeyType="search"
             style={styles.input}
           />
           {input ? (
             <Pressable
-              hitSlop={8}
-              onPress={() =>
-                setForm({ ...formState, input: '', keyword: '' })
-              }
+              hitSlop={hitSlop.md}
+              accessibilityRole="button"
+              accessibilityLabel="Xoá từ khoá"
+              onPress={() => setForm({ ...formState, input: '', keyword: '' })}
             >
               <Ionicons
                 name="close-circle"
                 size={18}
-                color={colors.primary}
+                color={colors.textFaint}
               />
             </Pressable>
           ) : null}
         </View>
 
         <Pressable
-          hitSlop={10}
+          hitSlop={hitSlop.md}
+          accessibilityRole="button"
+          accessibilityLabel="Bộ lọc tìm kiếm"
+          accessibilityState={{ selected: filters.applied }}
           onPress={() => router.push('/filter')}
-          style={({ pressed }) => [styles.filterButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.filterButton,
+            filters.applied && styles.filterButtonActive,
+            pressed && styles.backPressed,
+          ]}
         >
           <Ionicons
             name="options-outline"
-            size={24}
-            color={colors.primary}
+            size={20}
+            color={filters.applied ? colors.primaryAction : colors.text}
           />
-          {filters.applied ? <View style={styles.filterDot} /> : null}
         </Pressable>
       </View>
 
       {filters.applied ? (
-        <View style={styles.filterBar}>
-          <Text style={styles.filterText} numberOfLines={1}>
-            Đang áp dụng bộ lọc
-          </Text>
-          <Pressable hitSlop={8} onPress={resetFilters}>
-            <Text style={styles.clearFilter}>Xóa lọc</Text>
-          </Pressable>
+        <View style={[styles.filterBar, { paddingHorizontal: gutter }]}>
+          <View style={contentStyle}>
+            <View style={styles.filterBarRow}>
+              <Text style={styles.filterText} numberOfLines={1}>
+                Đang áp dụng bộ lọc
+              </Text>
+              <Pressable
+                hitSlop={hitSlop.sm}
+                accessibilityRole="button"
+                onPress={resetFilters}
+              >
+                <Text style={styles.clearFilter}>Xóa lọc</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       ) : null}
 
@@ -211,9 +231,18 @@ export default function SearchScreen() {
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <PlayerRowCard player={item} />}
+          numColumns={columns(320, spacing.sm)}
+          renderItem={({ item }) => (
+            <View style={styles.cell}>
+              <PlayerRowCard player={item} />
+            </View>
+          )}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.listContent}
+          style={contentStyle}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingHorizontal: gutter, gap: spacing.sm },
+          ]}
           ListFooterComponent={
             hasNext ? (
               <View style={styles.footer}>
@@ -233,74 +262,83 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
   appBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingRight: spacing.sm,
+    minHeight: control.appBarHeight,
     paddingVertical: spacing.xs,
+    backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   back: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
   },
-  pressed: { opacity: 0.7 },
+  backPressed: { opacity: 0.7 },
   searchBox: {
     flex: 1,
-    height: 42,
-    borderRadius: radius.md,
+    minWidth: 0,
+    height: control.inputHeight,
+    borderRadius: radius.pill,
     backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   input: {
     flex: 1,
+    minWidth: 0,
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
     color: colors.text,
-    paddingVertical: 8,
+    paddingVertical: 0,
   },
   filterButton: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
   },
-  filterDot: {
-    position: 'absolute',
-    top: 10,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.danger,
+  filterButtonActive: {
+    backgroundColor: colors.primaryFaint,
+    borderColor: colors.primaryBorder,
+    borderWidth: 1,
   },
   filterBar: {
+    backgroundColor: colors.primarySoft,
+    paddingVertical: spacing.sm,
+  },
+  filterBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.primaryFaint,
   },
   filterText: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.primaryDark,
+    fontSize: 13,
+    color: colors.primaryInk,
   },
   clearFilter: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.danger,
+    fontSize: 13,
+    color: colors.primaryAction,
   },
-  listContent: { paddingBottom: spacing.xl },
+  listContent: { paddingTop: spacing.sm, paddingBottom: spacing.xxl },
+  cell: { flex: 1 },
   footer: { padding: spacing.md },
 });

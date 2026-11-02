@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { gameOfUserService, gameService } from '@/api/services/catalog';
 import { userService } from '@/api/services/users';
 import {
@@ -13,17 +15,21 @@ import {
   LoadingView,
   useToast,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { displayNameOfGame } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, radius, spacing, touchTarget } from '@/theme';
 
 const MAX_SKILLS = 5;
 
 export default function AddSkillScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const { gutter, contentStyle, type } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? '';
   const [selected, setSelected] = useState<string[]>([]);
@@ -105,32 +111,43 @@ export default function AddSkillScreen() {
       ) : (
         <>
           <ScrollView
-            contentContainerStyle={styles.scroll}
+            style={contentStyle}
+            contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
             showsVerticalScrollIndicator={false}
           >
             {availableGames.length === 0 ? (
-              <Text style={styles.empty}>
+              <Text style={[styles.empty, type.body]}>
                 Bạn đã thêm tất cả tựa game hiện có.
               </Text>
             ) : (
-              availableGames.map((game) => (
-                <View key={game.id} style={styles.gameRow}>
-                  <Checkbox
-                    checked={selected.includes(game.id)}
-                    onPress={() => toggle(game.id)}
-                    label={displayNameOfGame(game)}
-                  />
-                </View>
-              ))
+              <View style={styles.card}>
+                {availableGames.map((game, index) => (
+                  <View
+                    key={game.id}
+                    style={[styles.row, index > 0 && styles.rowDivider]}
+                  >
+                    <Checkbox
+                      checked={selected.includes(game.id)}
+                      onPress={() => toggle(game.id)}
+                      label={displayNameOfGame(game)}
+                    />
+                  </View>
+                ))}
+              </View>
             )}
           </ScrollView>
 
-          <View style={styles.footer}>
-            <Button
-              label="Cập nhật"
-              onPress={() => void submit()}
-              loading={submitting}
-            />
+          <View
+            style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}
+          >
+            <View style={styles.footerInner}>
+              <Button
+                label="Cập nhật"
+                size="lg"
+                onPress={() => void submit()}
+                loading={submitting}
+              />
+            </View>
           </View>
         </>
       )}
@@ -139,28 +156,31 @@ export default function AddSkillScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
-    gap: spacing.xs,
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.md, paddingBottom: spacing.xl },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+  },
+  row: { minHeight: touchTarget },
+  rowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   empty: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: spacing.xl,
   },
-  gameRow: {
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
   footer: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
+  footerInner: { maxWidth: 420, width: '100%', alignSelf: 'center' },
 });

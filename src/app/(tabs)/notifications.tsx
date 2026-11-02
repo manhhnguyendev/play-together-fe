@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Image } from 'expo-image';
 import { useState } from 'react';
 import {
   FlatList,
@@ -11,19 +10,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationService } from '@/api/services/content';
 import type { NotificationModel } from '@/api/types';
-import { EmptyState, ErrorView, LoadingView, useToast } from '@/components/ui';
-import { useOngoingOrderGuard } from '@/features/orders/useOngoingOrderGuard';
+import {
+  EmptyState,
+  ErrorView,
+  LoadingView,
+  ScreenHeader,
+  useToast,
+} from '@/components/ui';
 import { useUnreadNotificationCount } from '@/features/notifications/useUnreadNotificationCount';
-import { formatDateTimeAmPm } from '@/lib/format';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
+import { formatDateTime } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, spacing } from '@/theme';
+import { openOrderById, orderIdOfReference, routeOfReference } from '@/navigation/deepLink';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function NotificationsScreen() {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const router = useAppRouter();
+  const { gutter, contentStyle } = useResponsive();
   const [pageSize, setPageSize] = useState(10);
 
-  useOngoingOrderGuard();
 
   const notificationsQuery = useQuery({
     queryKey: queryKeys.notifications(pageSize),
@@ -74,30 +82,39 @@ export default function NotificationsScreen() {
     if (item.status === 'UNREAD' && !markRead.isPending) {
       markRead.mutate(item.id);
     }
+
+    const orderId = orderIdOfReference(item.referenceUrl);
+    if (orderId) {
+      void openOrderById(orderId, router);
+      return;
+    }
+    const target = routeOfReference(item.referenceUrl);
+    if (target) router.push(target);
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={styles.appBar}>
-        <Image
-          source={require('../../../assets/images/play_together_logo_no_text.png')}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <Text style={styles.title}>Thông báo</Text>
-        <View style={styles.logo} />
-      </View>
+      <ScreenHeader
+        title="Thông báo"
+        subtitle={unreadCount > 0 ? `${unreadCount} chưa đọc` : 'Tất cả đã đọc'}
+      />
 
       {notifications.length > 0 ? (
-        <View style={styles.actions}>
-          <Text style={styles.unreadLabel}>
-            {unreadCount > 0 ? `${unreadCount} chưa đọc` : 'Tất cả đã đọc'}
-          </Text>
+        <View
+          style={[styles.actions, { paddingHorizontal: gutter }, contentStyle]}
+        >
           <View style={styles.actionButtons}>
             <Pressable
               disabled={unreadCount === 0 || markAll.isPending}
               onPress={() => markAll.mutate()}
-              style={({ pressed }) => [pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: unreadCount === 0 || markAll.isPending }}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.actionPill,
+                pressed && styles.pressed,
+                unreadCount === 0 && styles.actionPillDisabled,
+              ]}
             >
               <Text
                 style={[
@@ -111,7 +128,13 @@ export default function NotificationsScreen() {
             <Pressable
               disabled={removeRead.isPending}
               onPress={() => removeRead.mutate()}
-              style={({ pressed }) => [pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: removeRead.isPending }}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.actionPill,
+                pressed && styles.pressed,
+              ]}
             >
               <Text style={styles.actionText}>Xoá đã đọc</Text>
             </Pressable>
@@ -133,7 +156,8 @@ export default function NotificationsScreen() {
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          style={contentStyle}
+          contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
           onEndReached={loadMore}
           onEndReachedThreshold={0.4}
           renderItem={({ item }) => {
@@ -141,6 +165,8 @@ export default function NotificationsScreen() {
             return (
               <Pressable
                 onPress={() => openNotification(item)}
+                accessibilityRole="none"
+                accessibilityLabel={unread ? `${item.title}, chưa đọc` : item.title}
                 style={({ pressed }) => [
                   styles.item,
                   unread && styles.itemUnread,
@@ -159,9 +185,8 @@ export default function NotificationsScreen() {
                   <Text style={styles.itemBody}>{item.body}</Text>
                 ) : null}
                 <Text style={styles.itemDate}>
-                  {formatDateTimeAmPm(item.createdDate)}
+                  {formatDateTime(item.createdDate)}
                 </Text>
-                <View style={styles.divider} />
               </Pressable>
             );
           }}
@@ -177,51 +202,47 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  appBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  logo: { width: 46, height: 46, borderRadius: 23 },
-  title: {
-    flex: 1,
-    textAlign: 'center',
-    fontFamily: fonts.semibold,
-    fontSize: 18,
-    color: colors.text,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  unreadLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.textMuted,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
+  },
+  actionPill: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryFaint,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  actionPillDisabled: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
   },
   actionText: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 13,
-    color: colors.primary,
+    color: colors.primaryAction,
   },
   actionDisabled: { color: colors.textFaint },
-  pressed: { opacity: 0.65 },
-  list: { paddingTop: spacing.xs },
+  pressed: { opacity: 0.7 },
+  list: { paddingTop: spacing.xs, paddingBottom: spacing.xxl },
   item: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    marginBottom: spacing.xs,
+    backgroundColor: colors.surface,
   },
   itemUnread: { backgroundColor: colors.primaryFaint },
   itemHeader: {
@@ -230,39 +251,34 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   dot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryAction,
   },
   itemTitle: {
     flex: 1,
     fontFamily: fonts.medium,
     fontSize: 16,
     color: colors.text,
-    lineHeight: 22,
+    lineHeight: 23,
   },
-  itemTitleUnread: { fontFamily: fonts.semibold },
+  itemTitleUnread: { fontFamily: fonts.bold },
   itemBody: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    lineHeight: 20,
-    color: colors.textMuted,
+    lineHeight: 21,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   itemDate: {
     fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginTop: spacing.sm,
+    fontSize: 12,
+    color: colors.textFaint,
+    marginTop: 6,
   },
   loadingMore: {
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     fontSize: 12,
     color: colors.textMuted,
     textAlign: 'center',

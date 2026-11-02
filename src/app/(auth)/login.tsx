@@ -1,17 +1,17 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '@/api/client';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { GoogleLoginButton } from '@/components/auth/GoogleLoginButton';
-import { Button, TextField, useToast } from '@/components/ui';
+import { Button, TextField, type TextFieldHandle, useToast } from '@/components/ui';
 import { useContinueAfterSignIn } from '@/features/auth/useContinueAfterSignIn';
+import { useAppRouter } from '@/hooks/useAppRouter';
 import { messages, validateEmail } from '@/lib/validators';
 import { useAuthStore } from '@/store/auth';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, hitSlop, spacing } from '@/theme';
 
 export default function LoginScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const toast = useToast();
   const signInWithCredentials = useAuthStore(
     (state) => state.signInWithCredentials,
@@ -23,6 +23,7 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const passwordRef = useRef<TextFieldHandle>(null);
 
   const submit = async () => {
     const emailValidation = validateEmail(email);
@@ -60,10 +61,20 @@ export default function LoginScreen() {
       footer={
         <View style={styles.footer}>
           <View style={styles.links}>
-            <Pressable onPress={() => router.push('/(auth)/register')}>
+            <Pressable
+              hitSlop={hitSlop.sm}
+              accessibilityRole="link"
+              accessibilityLabel="Tạo tài khoản mới"
+              onPress={() => router.push('/(auth)/register')}
+            >
               <Text style={styles.link}>Tạo tài khoản?</Text>
             </Pressable>
-            <Pressable onPress={() => router.push('/(auth)/forgot-password')}>
+            <Pressable
+              hitSlop={hitSlop.sm}
+              accessibilityRole="link"
+              accessibilityLabel="Quên mật khẩu"
+              onPress={() => router.push('/(auth)/forgot-password')}
+            >
               <Text style={styles.link}>Quên mật khẩu?</Text>
             </Pressable>
           </View>
@@ -79,12 +90,15 @@ export default function LoginScreen() {
       }
     >
       <TextField
+        variant="floating"
         label="Email"
         leftIcon="mail-outline"
-        placeholder="Nhập vào email"
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
+        returnKeyType="next"
+        blurOnSubmit={false}
+        onSubmitEditing={() => passwordRef.current?.focus()}
         value={email}
         error={emailError}
         onChangeText={(value) => {
@@ -93,11 +107,14 @@ export default function LoginScreen() {
         }}
       />
       <TextField
+        variant="floating"
         label="Mật khẩu"
         leftIcon="lock-closed-outline"
-        placeholder="Nhập vào mật khẩu"
         secure
         autoCapitalize="none"
+        inputRef={passwordRef}
+        returnKeyType="done"
+        onSubmitEditing={submit}
         value={password}
         error={passwordError}
         onChangeText={(value) => {
@@ -126,10 +143,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   link: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 13,
-    color: colors.primaryDark,
-    textDecorationLine: 'underline',
+    color: colors.primaryAction,
   },
   divider: {
     flexDirection: 'row',

@@ -3,13 +3,10 @@ import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { feedbackService } from '@/api/services/content';
-import {
-  AppBar,
-  ErrorView,
-  LoadingView,
-} from '@/components/ui';
+import { AppBar, ErrorView, LoadingView } from '@/components/ui';
+import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, radius, spacing, touchTarget } from '@/theme';
 
 const TYPE_LABELS: Record<string, string> = {
   Suggest: 'Đề xuất tính năng hoặc thêm mới danh mục game',
@@ -18,13 +15,20 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const statusOf = (value: number) => {
-  if (value === 1) return { label: 'Đã duyệt', color: colors.success };
-  if (value === 0) return { label: 'Bị từ chối', color: colors.danger };
-  return { label: 'Chờ xét duyệt', color: colors.warning };
+  if (value === 1)
+    return { label: 'Đã duyệt', color: colors.success, background: colors.successSoft };
+  if (value === 0)
+    return { label: 'Bị từ chối', color: colors.danger, background: colors.dangerSoft };
+  return {
+    label: 'Chờ xét duyệt',
+    color: colors.warning,
+    background: colors.warningSoft,
+  };
 };
 
 export default function FeedbackDetailScreen() {
   const params = useLocalSearchParams<{ feedbackId?: string }>();
+  const { gutter, contentStyle, type } = useResponsive();
   const feedbackId =
     typeof params.feedbackId === 'string' ? params.feedbackId : '';
 
@@ -35,6 +39,7 @@ export default function FeedbackDetailScreen() {
   });
 
   const detail = detailQuery.data;
+  const status = statusOf(detail?.isApprove ?? 2);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -44,25 +49,45 @@ export default function FeedbackDetailScreen() {
       ) : detailQuery.isError || !detail ? (
         <ErrorView onRetry={() => detailQuery.refetch()} />
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={[styles.status, { color: statusOf(detail.isApprove).color }]}>
-            {statusOf(detail.isApprove).label}
-          </Text>
+        <ScrollView
+          style={contentStyle}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.column}>
+            <View style={styles.statusWrap}>
+              <View
+                style={[styles.statusPill, { backgroundColor: status.background }]}
+                accessibilityRole="text"
+                accessibilityLabel={`Trạng thái: ${status.label}`}
+              >
+                <Text style={[styles.status, type.bodyMedium, { color: status.color }]}>
+                  {status.label}
+                </Text>
+              </View>
+            </View>
 
-          <Text style={styles.label}>Thể loại: </Text>
-          <View style={styles.boxSmall}>
-            <Text style={styles.value}>
-              {TYPE_LABELS[detail.typeOfFeedback] ?? 'Lỗi gửi'}
-            </Text>
-          </View>
+            <View style={styles.card}>
+              <Text style={[styles.label, type.bodySmall]} accessibilityRole="text">
+                Thể loại:{' '}
+              </Text>
+              <View style={styles.boxSmall}>
+                <Text style={[styles.value, type.body]}>
+                  {TYPE_LABELS[detail.typeOfFeedback] ?? 'Lỗi gửi'}
+                </Text>
+              </View>
 
-          <Text style={styles.label}>Tiêu đề: </Text>
-          <View style={styles.boxSmall}>
-            <Text style={styles.value}>{detail.title}</Text>
-          </View>
+              <Text style={[styles.label, type.bodySmall]} accessibilityRole="text">
+                Tiêu đề:{' '}
+              </Text>
+              <View style={styles.boxSmall}>
+                <Text style={[styles.value, type.body]}>{detail.title}</Text>
+              </View>
+            </View>
 
-          <View style={styles.messageBox}>
-            <Text style={styles.message}>{detail.message}</Text>
+            <View style={[styles.card, styles.messageCard]}>
+              <Text style={[styles.message, type.body]}>{detail.message}</Text>
+            </View>
           </View>
         </ScrollView>
       )}
@@ -71,50 +96,38 @@ export default function FeedbackDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: {
-    padding: spacing.md,
-    paddingBottom: spacing.xxl,
-    gap: spacing.xs,
-  },
-  status: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    textAlign: 'center',
-    paddingBottom: spacing.sm,
-  },
-  label: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: colors.text,
-    marginTop: spacing.xs,
-  },
-  boxSmall: {
-    minHeight: 52,
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm, paddingBottom: spacing.xxl },
+  column: { gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 6,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  statusWrap: { alignItems: 'center' },
+  statusPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  status: { textAlign: 'center' },
+  label: { color: colors.textSecondary },
+  boxSmall: {
+    minHeight: touchTarget,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     justifyContent: 'center',
+    backgroundColor: colors.background,
   },
-  value: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.text,
-  },
-  messageBox: {
-    minHeight: 250,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 6,
-    padding: spacing.md,
-    marginTop: spacing.sm,
-  },
-  message: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.text,
-  },
+  value: { color: colors.text },
+  messageCard: { minHeight: 250, justifyContent: 'flex-start' },
+  message: { color: colors.text },
 });

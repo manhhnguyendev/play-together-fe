@@ -1,5 +1,15 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import { colors, control, duration, easing, fonts, radius, shadow, spacing } from '@/theme';
+import { usePressAnimation } from '@/hooks/usePressAnimation';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -17,19 +27,37 @@ interface ButtonProps {
 }
 
 const backgrounds: Record<ButtonVariant, string> = {
-  primary: colors.primary,
+  primary: colors.primaryFill,
   secondary: colors.primarySoft,
   outline: 'transparent',
   ghost: 'transparent',
-  danger: colors.danger,
+  danger: colors.dangerFill,
 };
 
 const labelColors: Record<ButtonVariant, string> = {
-  primary: colors.white,
-  secondary: colors.primaryDark,
-  outline: colors.primaryDark,
-  ghost: colors.textMuted,
-  danger: colors.white,
+  primary: colors.textOnPrimary,
+  secondary: colors.primaryInk,
+  outline: colors.primaryAction,
+  ghost: colors.textSecondary,
+  danger: colors.textOnPrimary,
+};
+
+const pressedBackgrounds: Partial<Record<ButtonVariant, string>> = {
+  primary: colors.primaryFillPressed,
+  secondary: colors.primaryBorder,
+  danger: colors.dangerFillPressed,
+};
+
+const heights: Record<ButtonSize, number> = {
+  sm: control.buttonSm,
+  md: control.buttonMd,
+  lg: control.buttonLg,
+};
+
+const labelType: Record<ButtonSize, number> = {
+  sm: 14,
+  md: 15,
+  lg: 17,
 };
 
 export function Button({
@@ -43,44 +71,70 @@ export function Button({
   icon,
   style,
 }: ButtonProps) {
+  const press = usePressAnimation();
+  const [fade] = useState(() => new Animated.Value(1));
   const isDisabled = disabled || loading;
 
+  const dim = (toValue: number) =>
+    Animated.timing(fade, {
+      toValue,
+      duration: duration.state,
+      easing: easing.standard,
+      useNativeDriver: true,
+    }).start();
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.base,
-        sizeStyles[size],
+    <Animated.View
+      style={[
         {
-          backgroundColor: backgrounds[variant],
-          borderColor: variant === 'outline' ? colors.primary : 'transparent',
-          borderWidth: variant === 'outline' ? 1.5 : 0,
-          opacity: isDisabled ? 0.55 : pressed ? 0.85 : 1,
+          opacity: isDisabled ? 0.45 : 1,
           width: fullWidth ? '100%' : undefined,
-          borderRadius: size === 'lg' ? radius.md : radius.sm,
+          transform: press.style.transform,
         },
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color={labelColors[variant]} size="small" />
-      ) : (
-        <View style={styles.content}>
-          {icon}
-          <Text
-            style={[
-              styles.label,
-              { color: labelColors[variant] },
-              size === 'sm' && styles.labelSmall,
-              size === 'lg' && styles.labelLarge,
-            ]}
-          >
-            {label}
-          </Text>
-        </View>
-      )}
-    </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: isDisabled, busy: loading }}
+        onPress={onPress}
+        onPressIn={isDisabled ? undefined : press.onPressIn}
+        onPressOut={isDisabled ? undefined : () => { press.onPressOut(); dim(1); }}
+        onHoverIn={isDisabled ? undefined : () => dim(0.9)}
+        onHoverOut={isDisabled ? undefined : () => dim(1)}
+        style={({ pressed }) => [
+          styles.base,
+          {
+            height: heights[size],
+            backgroundColor:
+              pressed && pressedBackgrounds[variant]
+                ? pressedBackgrounds[variant]
+                : backgrounds[variant],
+            borderColor: variant === 'outline' ? colors.primaryMuted : 'transparent',
+            borderWidth: variant === 'outline' ? 1.5 : 0,
+            ...(variant === 'primary' || variant === 'danger' ? shadow.raised : null),
+          },
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color={labelColors[variant]} size="small" />
+        ) : (
+          <Animated.View style={[styles.content, { opacity: fade }]}>
+            {icon}
+            <Text
+              style={[
+                styles.label,
+                { color: labelColors[variant], fontSize: labelType[size] },
+              ]}
+              numberOfLines={1}
+            >
+              {label}
+            </Text>
+          </Animated.View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -88,7 +142,8 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.pill,
   },
   content: {
     flexDirection: 'row',
@@ -97,15 +152,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
-  labelSmall: { fontSize: 13 },
-  labelLarge: { fontSize: 17 },
-});
-
-const sizeStyles = StyleSheet.create({
-  sm: { height: 38 },
-  md: { height: 48 },
-  lg: { height: 54 },
 });

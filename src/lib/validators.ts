@@ -28,6 +28,20 @@ export const validateStrongPassword = (value: string): string | null => {
   return null;
 };
 
+export interface PasswordRule {
+  label: string;
+  satisfied: boolean;
+}
+
+/** Mirrors PASSWORD_REGEX one condition at a time so the UI can show progress. */
+export const passwordRules = (value: string): PasswordRule[] => [
+  { label: '8-30 kí tự', satisfied: value.length >= 8 && value.length <= 30 },
+  { label: 'Chữ hoa', satisfied: /[A-Z]/.test(value) },
+  { label: 'Chữ thường', satisfied: /[a-z]/.test(value) },
+  { label: 'Chữ số', satisfied: /[0-9]/.test(value) },
+  { label: 'Kí tự đặc biệt', satisfied: /[!@#$&*~]/.test(value) },
+];
+
 export const validateConfirmPassword = (
   password: string,
   confirm: string,

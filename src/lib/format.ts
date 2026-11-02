@@ -26,26 +26,19 @@ export const formatDate = (value?: string | null): string => {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 };
 
+/** `14:30 02/11/2026` — the order the Vietnamese screens read it in. */
 export const formatDateTime = (value?: string | null): string => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${pad(date.getHours())}:${pad(date.getMinutes())} ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 };
 
-export const formatTimeAmPm = (value?: string | null): string => {
+export const formatTime = (value?: string | null): string => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  const hours = date.getHours();
-  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-  const suffix = hours < 12 ? 'AM' : 'PM';
-  return `${pad(displayHour)}:${pad(date.getMinutes())} ${suffix}`;
-};
-
-export const formatDateTimeAmPm = (value?: string | null): string => {
-  if (!value) return '';
-  return `${formatDate(value)}, ${formatTimeAmPm(value)}`;
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 export const isEmptyDate = (value?: string | null): boolean =>

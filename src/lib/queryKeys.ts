@@ -28,6 +28,11 @@ export const queryKeys = {
     created: (pageSize: number) => ['orders', 'created', pageSize] as const,
     received: (pageSize: number) => ['orders', 'received', pageSize] as const,
   },
+  playerWork: {
+    root: ['player-work'] as const,
+    requests: (status: string) =>
+      ['player-work', 'requests', status] as const,
+  },
   chat: (userId: string) => ['chat', userId] as const,
   gameRanks: (gameId: string) => ['games', gameId, 'ranks'] as const,
   userService: (userId: string) => ['users', userId, 'service'] as const,

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
   createContext,
   useCallback,
@@ -8,9 +9,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, radius, shadow, spacing } from '@/theme';
+import { colors, control, duration, easing, fonts, radius, shadow, spacing } from '@/theme';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -22,10 +23,16 @@ const ToastContext = createContext<ToastContextValue>({ show: () => {} });
 
 export const useToast = () => useContext(ToastContext);
 
-const palette: Record<ToastType, string> = {
+const accents: Record<ToastType, string> = {
   success: colors.success,
   error: colors.danger,
-  info: colors.primary,
+  info: colors.primaryMuted,
+};
+
+const icons: Record<ToastType, keyof typeof Ionicons.glyphMap> = {
+  success: 'checkmark-circle',
+  error: 'alert-circle',
+  info: 'information-circle',
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -39,8 +46,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const hide = useCallback(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 16, duration: 180, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: duration.exit, easing: easing.accelerate, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 16, duration: duration.exit, easing: easing.accelerate, useNativeDriver: true }),
     ]).start(() => setToast(null));
   }, [opacity, translateY]);
 
@@ -51,8 +58,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       opacity.setValue(0);
       translateY.setValue(16);
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: duration.enter, easing: easing.decelerate, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: duration.enter, easing: easing.decelerate, useNativeDriver: true }),
       ]).start();
       hideTimer.current = setTimeout(hide, 2600);
     },
@@ -74,17 +81,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {toast ? (
         <Animated.View
           pointerEvents="none"
+          accessibilityLiveRegion="polite"
           style={[
             styles.container,
             {
-              bottom: insets.bottom + 72,
+              bottom: insets.bottom + control.tabBarHeight + spacing.sm,
               opacity,
               transform: [{ translateY }],
-              borderLeftColor: palette[toast.type],
             },
           ]}
         >
-          <View style={[styles.dot, { backgroundColor: palette[toast.type] }]} />
+          <Ionicons
+            name={icons[toast.type]}
+            size={20}
+            color={accents[toast.type]}
+          />
           <Text style={styles.message}>{toast.message}</Text>
         </Animated.View>
       ) : null}
@@ -95,28 +106,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
+    left: spacing.md,
+    right: spacing.md,
+    maxWidth: 520,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(28,28,30,0.94)',
-    borderRadius: radius.md,
-    borderLeftWidth: 4,
+    gap: spacing.sm,
+    backgroundColor: colors.inverseSurface,
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     ...shadow.floating,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: spacing.sm,
   },
   message: {
     flex: 1,
+    minWidth: 0,
     fontFamily: fonts.medium,
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.white,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.inverseText,
   },
 });

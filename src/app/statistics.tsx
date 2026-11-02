@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -14,15 +13,19 @@ import {
   AppBar,
   ErrorView,
   LoadingView,
+  SectionHeader,
 } from '@/components/ui';
+import { useAppRouter } from '@/hooks/useAppRouter';
+import { useResponsive } from '@/hooks/useResponsive';
 import { formatVnd } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function StatisticsScreen() {
-  const router = useRouter();
+  const router = useAppRouter();
   const storedUser = useAuthStore((state) => state.user);
+  const { gutter, contentStyle, type } = useResponsive();
 
   const statisticQuery = useQuery({
     queryKey: queryKeys.statistic,
@@ -64,77 +67,120 @@ export default function StatisticsScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Thống kê" />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
-          <View style={styles.completion}>
-            <Text style={styles.cardTitle}>Tỷ lệ hoàn thành</Text>
-            <View style={styles.completionRow}>
+        <View style={[styles.column, contentStyle]}>
+          <View style={styles.card}>
+            <SectionHeader title="Tỷ lệ hoàn thành" icon="pie-chart-outline" />
+            <View style={styles.tileRow}>
               <CompletionStat value={statistic.item3} label="Theo ngày" />
               <CompletionStat value={statistic.item4} label="Theo tháng" />
             </View>
           </View>
 
-          <View style={styles.verticalDivider} />
-
           <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Xem chi tiết đánh giá"
             onPress={() => router.push(`/ratings/${user.id}?canReport=1`)}
-            style={({ pressed }) => [styles.rating, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.card,
+              styles.ratingCard,
+              pressed && styles.pressed,
+            ]}
           >
-            <Text style={styles.cardTitle}>Đánh giá</Text>
-            <Ionicons name="star" size={32} color={colors.gold} />
-            <Text style={styles.ratingValue}>{user.rate.toFixed(1)}</Text>
-            <Text style={styles.ratingLink}>Xem chi tiết</Text>
+            <SectionHeader title="Đánh giá" icon="star" />
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={26} color={colors.gold} />
+              <Text style={[styles.ratingValue, type.title2]}>
+                {user.rate.toFixed(1)}
+              </Text>
+              <View style={styles.ratingLinkWrap}>
+                <Text style={[styles.ratingLink, type.bodySmallMedium]}>
+                  Xem chi tiết
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={colors.primaryAction}
+                />
+              </View>
+            </View>
           </Pressable>
-        </View>
 
-        <View style={styles.cardColumn}>
-          <Text style={styles.cardTitle}>Thống kê đơn thuê</Text>
-          <InfoLine label="Tổng thời gian thuê:" value={String(user.totalTimeOrder)} />
-          <InfoLine label="Số đơn thuê đã nhận:" value={String(user.numOfOrder)} />
-          <InfoLine
-            label="Số đơn thuê hoàn thành đúng giờ:"
-            value={String(user.numOfFinishOnTime)}
-          />
-        </View>
-
-        <View style={styles.cardColumn}>
-          <Text style={styles.cardTitle}>Doanh thu</Text>
-          <View style={styles.revenueRow}>
-            <RevenueStat value={statistic.item1} label="Theo ngày" />
-            <RevenueStat value={statistic.item2} label="Theo tháng" />
+          <View style={styles.card}>
+            <SectionHeader title="Thống kê đơn thuê" icon="receipt-outline" />
+            <InfoLine
+              label="Tổng thời gian thuê:"
+              value={String(user.totalTimeOrder)}
+            />
+            <InfoLine
+              label="Số đơn thuê đã nhận:"
+              value={String(user.numOfOrder)}
+            />
+            <InfoLine
+              label="Số đơn thuê hoàn thành đúng giờ:"
+              value={String(user.numOfFinishOnTime)}
+            />
           </View>
-        </View>
 
-        <View style={styles.cardColumn}>
-          <Text style={styles.cardTitle}>Độ uy tín</Text>
-          <InfoLine label="Điểm hành vi:" value={String(user.behaviorPoint.point)} />
-          <InfoLine
-            label="Điểm hài lòng:"
-            value={String(user.behaviorPoint.satisfiedPoint)}
-          />
+          <View style={styles.card}>
+            <SectionHeader title="Doanh thu" icon="cash-outline" />
+            <View style={styles.tileRow}>
+              <RevenueStat value={statistic.item1} label="Theo ngày" />
+              <RevenueStat value={statistic.item2} label="Theo tháng" />
+            </View>
+          </View>
+
+          <View style={styles.card}>
+            <SectionHeader title="Độ uy tín" icon="shield-checkmark-outline" />
+            <InfoLine
+              label="Điểm hành vi:"
+              value={String(user.behaviorPoint.point)}
+            />
+            <InfoLine
+              label="Điểm hài lòng:"
+              value={String(user.behaviorPoint.satisfiedPoint)}
+            />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function CompletionStat({ value, label }: { value: number; label: string }) {
+function CompletionStat({
+  value,
+  label,
+}: {
+  value: number;
+  label: string;
+}) {
+  const { type } = useResponsive();
   return (
-    <View style={styles.completionItem}>
-      <Ionicons name="pie-chart-outline" size={30} color={colors.text} />
-      <Text style={styles.completionValue}>{value.toFixed(0)} %</Text>
-      <Text style={styles.completionLabel}>{label}</Text>
+    <View style={styles.tile}>
+      <Text style={[styles.tileValue, type.title2]}>
+        {value.toFixed(0)} %
+      </Text>
+      <Text style={styles.tileLabel}>{label}</Text>
     </View>
   );
 }
 
-function RevenueStat({ value, label }: { value: number; label: string }) {
+function RevenueStat({
+  value,
+  label,
+}: {
+  value: number;
+  label: string;
+}) {
+  const { type } = useResponsive();
   return (
-    <View style={styles.revenueItem}>
-      <Text style={styles.revenueValue}>{formatVnd(value)}</Text>
-      <Text style={styles.completionLabel}>{label}</Text>
+    <View style={styles.tile}>
+      <Text style={[styles.tileValue, type.title3]} numberOfLines={1}>
+        {formatVnd(value)}
+      </Text>
+      <Text style={styles.tileLabel}>{label}</Text>
     </View>
   );
 }
@@ -149,74 +195,67 @@ function InfoLine({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: {
-    padding: spacing.md,
-    paddingBottom: spacing.xxl,
-    gap: spacing.md,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingVertical: spacing.sm },
+  column: { gap: spacing.sm },
   card: {
-    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-  },
-  completion: {
-    flex: 2,
     padding: spacing.md,
+    gap: spacing.xs,
   },
-  completionRow: {
+  ratingCard: { gap: spacing.xxs },
+  ratingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: spacing.sm,
-  },
-  completionItem: { alignItems: 'center', gap: 5 },
-  completionValue: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-    color: colors.success,
-  },
-  completionLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  verticalDivider: {
-    width: 1,
-    backgroundColor: colors.border,
-  },
-  rating: {
-    flex: 1,
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
-  },
-  pressed: { opacity: 0.7 },
-  cardTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    color: colors.text,
-    textAlign: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   ratingValue: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: colors.text,
+    color: colors.textStrong,
+    flexShrink: 0,
+  },
+  ratingLinkWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginLeft: 'auto',
+    minWidth: 0,
   },
   ratingLink: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.text,
-    textDecorationLine: 'underline',
+    color: colors.primaryAction,
+    flexShrink: 1,
   },
-  cardColumn: {
-    borderWidth: 1,
-    borderColor: colors.border,
+  pressed: { opacity: 0.7 },
+  tileRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  tile: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 120,
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: spacing.sm,
     borderRadius: radius.md,
-    padding: spacing.md,
-    gap: 4,
+    backgroundColor: colors.primaryFaint,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  tileValue: {
+    color: colors.textStrong,
+    textAlign: 'center',
+  },
+  tileLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.textMuted,
   },
   infoLine: {
     flexDirection: 'row',
@@ -229,23 +268,12 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.text,
+    color: colors.textSecondary,
   },
   infoValue: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.semibold,
     fontSize: 14,
     color: colors.text,
     textAlign: 'right',
-  },
-  revenueRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: spacing.xs,
-  },
-  revenueItem: { alignItems: 'center', gap: 4 },
-  revenueValue: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-    color: colors.success,
   },
 });

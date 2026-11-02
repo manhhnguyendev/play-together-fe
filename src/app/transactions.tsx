@@ -27,12 +27,12 @@ const FILTERS = [
   { label: 'Trừ tiền', type: 'Order', operation: 'Sub' },
   { label: 'Nạp tiền', type: 'Deposit', operation: '' },
   { label: 'Rút tiền', type: 'Withdraw', operation: '' },
-  { label: 'Donate', type: 'Donate', operation: '' },
+  { label: 'Quyên góp', type: 'Donate', operation: '' },
 ] as const;
 
 const transactionTitle = (type: string, operation: string): string => {
-  if (type === 'Deposit') return 'Nạp tiền từ MOMO';
-  if (type === 'Withdraw') return 'Rút tiền về MOMO';
+  if (type === 'Deposit') return 'Nạp tiền từ MoMo';
+  if (type === 'Withdraw') return 'Rút tiền về MoMo';
   if (type === 'Order - Refund') return 'Hoàn tiền từ giao dịch';
   if (type === 'Order' && operation === 'Add') return 'Nhận tiền từ giao dịch';
   if (type === 'Order' && operation === 'Sub') return 'Trừ tiền từ giao dịch';
@@ -45,7 +45,7 @@ const transactionTitle = (type: string, operation: string): string => {
 
 export default function TransactionsScreen() {
   const router = useAppRouter();
-  const { gutter, contentStyle, itemWidth, type } = useResponsive();
+  const { gutter, contentStyle, type } = useResponsive();
   const [filterIndex, setFilterIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const filter = FILTERS[filterIndex];
@@ -85,7 +85,6 @@ export default function TransactionsScreen() {
               onPress={() => selectFilter(index)}
               style={({ pressed }) => [
                 styles.filter,
-                { width: itemWidth(150, spacing.sm) },
                 active && styles.filterActive,
                 pressed && styles.pressed,
               ]}

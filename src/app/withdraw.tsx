@@ -64,7 +64,7 @@ export default function WithdrawScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <AppBar title="Thanh toán qua MOMO" />
+      <AppBar title="Thanh toán qua MoMo" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

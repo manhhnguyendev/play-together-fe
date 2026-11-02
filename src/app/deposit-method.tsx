@@ -21,7 +21,7 @@ export default function DepositMethodScreen() {
         <View style={styles.card}>
           <PaymentMethodRow
             image={require('../../assets/images/momologo.png')}
-            title="Thanh toán qua MOMO"
+            title="Thanh toán qua MoMo"
             onPress={() => router.push('/deposit')}
           />
           <PaymentMethodRow

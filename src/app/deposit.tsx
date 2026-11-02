@@ -75,11 +75,11 @@ export default function DepositScreen() {
         toast.show('Nạp tiền thành công (thanh toán thử nghiệm)', 'success');
       } else {
         await Linking.openURL(payUrl);
-        toast.show('Đã mở cổng thanh toán MOMO', 'success');
+        toast.show('Đã mở cổng thanh toán MoMo', 'success');
       }
       router.dismissTo('/(tabs)/personal');
     } catch {
-      toast.show('Không thể mở cổng thanh toán MOMO', 'error');
+      toast.show('Không thể mở cổng thanh toán MoMo', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +87,7 @@ export default function DepositScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <AppBar title="Thanh toán qua MOMO" />
+      <AppBar title="Thanh toán qua MoMo" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

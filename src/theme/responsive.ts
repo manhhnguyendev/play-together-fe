@@ -67,5 +67,8 @@ export function gridColumns(width: number, minCard = 160, gap = 10) {
 export function gridItemWidth(width: number, minCard = 160, gap = 10) {
   const cols = gridColumns(width, minCard, gap);
   const usable = width - gutterFor(getBreakpoint(width)) * 2 - gap * (cols - 1);
-  return PixelRatio.roundToNearestPixel(usable / cols);
+  // Floor, never round: at 375 dp with two columns the exact share is 167.5,
+  // and rounding it up to 167.67 makes the row 343.33 wide inside a 343
+  // container — the row then wraps to one item per line and the grid collapses.
+  return Math.floor(usable / cols);
 }

@@ -40,7 +40,7 @@ const VOTE_OPTIONS: { label: string; value: number }[] = [
 
 export default function RatingsScreen() {
   const router = useAppRouter();
-  const { gutter, contentStyle, itemWidth } = useResponsive();
+  const { gutter, contentStyle } = useResponsive();
   const params = useLocalSearchParams<{ userId?: string; canReport?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId : '';
   const canReport = params.canReport === '1';
@@ -84,13 +84,12 @@ export default function RatingsScreen() {
 
         <View style={styles.filterRow}>
           {VOTE_OPTIONS.map((option) => (
-            <View key={option.value} style={{ width: itemWidth(150, spacing.sm) }}>
-              <Chip
-                label={option.label}
-                selected={vote === option.value}
-                onPress={() => changeVote(option.value)}
-              />
-            </View>
+            <Chip
+              key={option.value}
+              label={option.label}
+              selected={vote === option.value}
+              onPress={() => changeVote(option.value)}
+            />
           ))}
         </View>
       </View>

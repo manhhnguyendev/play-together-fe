@@ -24,7 +24,7 @@ export default function WithdrawMethodScreen() {
         <View style={styles.card}>
           <PaymentMethodRow
             image={require('../../assets/images/momologo.png')}
-            title="Thanh toán qua MOMO"
+            title="Thanh toán qua MoMo"
             onPress={() =>
               router.push({ pathname: '/withdraw', params: { money } })
             }

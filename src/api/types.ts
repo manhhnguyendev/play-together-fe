@@ -102,9 +102,12 @@ export interface UserModel {
   userBalance: UserBalanceModel;
   status: string;
   isActive: boolean;
+  /** The account has at least one game skill, so player mode can be turned on. */
+  hasSkills: boolean;
   rate: number;
   numOfRate: number;
   numOfOrder: number;
+  numOfFinishedOrder: number;
   totalTimeOrder: number;
   numOfFinishOnTime: number;
   behaviorPoint: BehaviorModel;

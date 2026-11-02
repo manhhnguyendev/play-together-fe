@@ -217,9 +217,11 @@ export const toLegacyUserProfile = (
     : { id: '', balance: 0, activeBalance: 0 },
   status: toLegacyUserStatus(profile.status),
   isActive: profile.isActive,
+  hasSkills: profile.skills.length > 0,
   rate: profile.rating,
   numOfRate: profile.ratingCount,
   numOfOrder: profile.ordersCount,
+  numOfFinishedOrder: profile.completedOrdersCount,
   totalTimeOrder: profile.totalHours,
   numOfFinishOnTime: profile.onTimeCount,
   behaviorPoint: {

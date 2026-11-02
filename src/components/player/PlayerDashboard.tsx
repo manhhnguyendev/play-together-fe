@@ -1,11 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { OrderModel } from '@/api/types';
 import { ratingService } from '@/api/services/content';
 import { orderService } from '@/api/services/orders';
 import { userService } from '@/api/services/users';
-import { Avatar, ErrorView, SectionHeader, Skeleton } from '@/components/ui';
+import {
+  Avatar,
+  Button,
+  ErrorView,
+  SectionHeader,
+  Skeleton,
+  useToast,
+} from '@/components/ui';
 import { orderGameNames } from '@/features/orders/status';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -22,21 +30,33 @@ import { colors, fonts, radius, spacing } from '@/theme';
  */
 export function PlayerDashboard() {
   const router = useAppRouter();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { type } = useResponsive();
   const user = useAuthStore((state) => state.user);
+  const refreshUser = useAuthStore((state) => state.refreshUser);
   const userId = user?.id ?? '';
+  const isPlayer = Boolean(user?.isPlayer);
+  const [enabling, setEnabling] = useState(false);
 
+  // Booked and live sessions stay visible while player mode is off — the API
+  // does not cancel them, and a paused player still owes those hours. Everything
+  // that only matters to someone taking work waits for the switch.
   const statisticQuery = useQuery({
     queryKey: queryKeys.statistic,
+    enabled: isPlayer,
     queryFn: async () => (await userService.getStatistic()).content,
   });
 
   const pendingQuery = useQuery({
     queryKey: queryKeys.unActiveBalances,
+    enabled: isPlayer,
     queryFn: async () => (await userService.getUnActiveBalances()).content,
   });
 
   const requestsQuery = useQuery({
     queryKey: queryKeys.playerWork.requests('Processing'),
+    enabled: isPlayer,
     queryFn: async () =>
       (await orderService.getRequestsOfPlayer('Processing')).content,
   });
@@ -55,7 +75,7 @@ export function PlayerDashboard() {
 
   const ratingsQuery = useQuery({
     queryKey: queryKeys.ratings(userId, 0, 3),
-    enabled: Boolean(userId),
+    enabled: isPlayer && Boolean(userId),
     queryFn: async () => (await ratingService.getAll(userId, 0, 3)).content,
   });
 
@@ -65,6 +85,148 @@ export function PlayerDashboard() {
   const scheduled = scheduledQuery.data ?? [];
   const live = liveQuery.data ?? [];
   const ratings = ratingsQuery.data ?? [];
+
+  const enablePlayerMode = async () => {
+    setEnabling(true);
+    try {
+      await userService.updateIsPlayer({ isPlayer: true });
+    } catch (error) {
+      toast.show(
+        error instanceof Error ? error.message : 'Không bật được nhận thuê',
+        'error',
+      );
+      setEnabling(false);
+      return;
+    }
+    await Promise.all([
+      refreshUser().catch(() => undefined),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.userService(userId),
+      }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.playerWork.root }),
+    ]);
+    setEnabling(false);
+    toast.show('Đang nhận yêu cầu thuê', 'success');
+  };
+
+  const liveList =
+    live.length > 0 ? (
+      <WorkList
+        title="Phiên đang diễn ra"
+        icon="flash-outline"
+        orders={live}
+        loading={liveQuery.isLoading}
+        metaOf={(order) =>
+          `${order.totalTimes} giờ · ${orderGameNames(order).join(', ')}`
+        }
+        onPress={(order) => router.push(`/hiring-stage/${order.id}`)}
+      />
+    ) : null;
+
+  const scheduledList =
+    scheduled.length > 0 ? (
+      <WorkList
+        title="Phiên sắp tới"
+        icon="calendar-outline"
+        orders={scheduled}
+        loading={scheduledQuery.isLoading}
+        metaOf={(order) =>
+          `${order.totalTimes} giờ · ${
+            order.timeStart ? formatDateTime(order.timeStart) : 'chưa hẹn giờ'
+          }`
+        }
+        onPress={(order) => router.push(`/history/${order.id}`)}
+      />
+    ) : null;
+
+  // Player mode is a mode, not a busy flag: while it is off nobody can hire this
+  // account and the account cannot hire anyone. The switch used to live only in
+  // Quản lý nhận thuê, so turning it back on cost two screens of walking.
+  if (!isPlayer) {
+    return (
+      <>
+        <View style={styles.card}>
+          <View style={styles.headRow}>
+            <View style={styles.headLabelWrap}>
+              <Text style={[styles.headTitle, type.title3]}>
+                Ca trực của bạn
+              </Text>
+              <View style={styles.statusRow}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: colors.textFaint },
+                  ]}
+                />
+                <Text style={styles.statusText}>
+                  Đang ngừng nhận yêu cầu thuê
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Quản lý nhận thuê"
+              onPress={() => router.push('/manage-hiring')}
+              style={({ pressed }) => [
+                styles.headAction,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.headActionText}>Quản lý</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={15}
+                color={colors.primaryAction}
+              />
+            </Pressable>
+          </View>
+
+          <Text style={styles.pausedHint}>
+            Khi đang tắt, bạn không nhận đơn mới và cũng không đi thuê được. Ca
+            đã hẹn vẫn còn hiệu lực.
+          </Text>
+
+          {scheduledQuery.isError || liveQuery.isError ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Thử tải lại các ca đã hẹn"
+              onPress={() => {
+                void scheduledQuery.refetch();
+                void liveQuery.refetch();
+              }}
+              style={({ pressed }) => [
+                styles.pausedRetry,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={14}
+                color={colors.warning}
+              />
+              <Text style={styles.pausedRetryText}>
+                Không tải được các ca đã hẹn. Nhấn để thử lại.
+              </Text>
+            </Pressable>
+          ) : null}
+
+          <View style={styles.pausedActionRow}>
+            <Button
+              label="Bật lại"
+              variant="outline"
+              size="sm"
+              fullWidth={false}
+              loading={enabling}
+              onPress={() => void enablePlayerMode()}
+            />
+          </View>
+        </View>
+
+        {liveList}
+        {scheduledList}
+      </>
+    );
+  }
 
   const retryAll = () => {
     void statisticQuery.refetch();
@@ -109,20 +271,10 @@ export function PlayerDashboard() {
         onManage={() => router.push('/manage-hiring')}
         onStatistics={() => router.push('/statistics')}
         onPending={() => router.push('/unactive-balance')}
+        onRatings={() => router.push(`/ratings/${userId}`)}
       />
 
-      {live.length > 0 ? (
-        <WorkList
-          title="Phiên đang diễn ra"
-          icon="flash-outline"
-          orders={live}
-          loading={liveQuery.isLoading}
-          metaOf={(order) =>
-            `${order.totalTimes} giờ · ${orderGameNames(order).join(', ')}`
-          }
-          onPress={(order) => router.push(`/hiring-stage/${order.id}`)}
-        />
-      ) : null}
+      {liveList}
 
       <WorkList
         title="Yêu cầu chờ phản hồi"
@@ -142,20 +294,7 @@ export function PlayerDashboard() {
         onPress={(order) => router.push(`/receive-request/${order.id}`)}
       />
 
-      {scheduled.length > 0 ? (
-        <WorkList
-          title="Phiên sắp tới"
-          icon="calendar-outline"
-          orders={scheduled}
-          loading={scheduledQuery.isLoading}
-          metaOf={(order) =>
-            `${order.totalTimes} giờ · ${
-              order.timeStart ? formatDateTime(order.timeStart) : 'chưa hẹn giờ'
-            }`
-          }
-          onPress={(order) => router.push(`/history/${order.id}`)}
-        />
-      ) : null}
+      {scheduledList}
 
       {ratings.length > 0 ? (
         <View style={styles.card}>
@@ -210,6 +349,7 @@ function SummaryCard({
   onManage,
   onStatistics,
   onPending,
+  onRatings,
 }: {
   isAccepting: boolean;
   loading: boolean;
@@ -223,6 +363,7 @@ function SummaryCard({
   onManage: () => void;
   onStatistics: () => void;
   onPending: () => void;
+  onRatings: () => void;
 }) {
   const { type } = useResponsive();
 
@@ -316,11 +457,29 @@ function SummaryCard({
 
       <View style={styles.divider} />
 
-      <Text style={styles.footText}>
-        {ratingCount > 0
-          ? `${rating.toFixed(1)} ★ từ ${ratingCount} đánh giá`
-          : 'Chưa có đánh giá nào'}
-      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          ratingCount > 0
+            ? `Xem ${ratingCount} đánh giá, trung bình ${rating.toFixed(1)} sao`
+            : 'Xem mục đánh giá'
+        }
+        onPress={onRatings}
+        style={({ pressed }) => [styles.footRow, pressed && styles.pressed]}
+      >
+        <View style={styles.ratingPill}>
+          <Ionicons name="star" size={12} color={colors.goldText} />
+          <Text style={styles.ratingPillValue}>
+            {ratingCount > 0 ? rating.toFixed(1) : '—'}
+          </Text>
+        </View>
+        <Text style={styles.footText} numberOfLines={1}>
+          {ratingCount > 0
+            ? `${ratingCount} đánh giá từ người thuê`
+            : 'Chưa có đánh giá nào'}
+        </Text>
+        <Ionicons name="chevron-forward" size={14} color={colors.textFaint} />
+      </Pressable>
     </View>
   );
 }
@@ -446,6 +605,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.primaryAction,
   },
+  pausedHint: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+  },
+  pausedRetry: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pausedRetryText: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.warning,
+  },
+  pausedActionRow: {
+    alignSelf: 'center',
+    marginTop: spacing.xxs,
+    minWidth: 160,
+  },
   tileRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -487,6 +666,21 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.goldSoft,
+  },
+  ratingPillValue: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.goldText,
   },
   orderRow: {
     flexDirection: 'row',

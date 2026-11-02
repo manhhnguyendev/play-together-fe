@@ -63,6 +63,10 @@ export default function StatisticsScreen() {
     );
   }
 
+  const completion = user.numOfOrder
+    ? Math.round((user.numOfFinishedOrder / user.numOfOrder) * 100)
+    : 0;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Thống kê" />
@@ -74,8 +78,10 @@ export default function StatisticsScreen() {
           <View style={styles.card}>
             <SectionHeader title="Tỷ lệ hoàn thành" icon="pie-chart-outline" />
             <View style={styles.tileRow}>
-              <CompletionStat value={statistic.item3} label="Theo ngày" />
-              <CompletionStat value={statistic.item4} label="Theo tháng" />
+              <CompletionStat
+                value={completion}
+                label={`${user.numOfFinishedOrder}/${user.numOfOrder} đơn đã hoàn thành`}
+              />
             </View>
           </View>
 

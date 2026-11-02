@@ -125,20 +125,13 @@ export const userService = {
   },
 
   getStatistic: async () => {
-    const [profile, earnings] = await Promise.all([
-      apiGet<UserProfile>(`${API_URL.users}/me`),
-      apiGet<EarningsSummary>(`${API_URL.wallet}/earnings/summary`),
-    ]);
-
-    const completion = profile.ordersCount
-      ? Math.round((profile.completedOrdersCount / profile.ordersCount) * 100)
-      : 0;
+    const earnings = await apiGet<EarningsSummary>(
+      `${API_URL.wallet}/earnings/summary`,
+    );
 
     return legacyResponse({
       item1: earnings.today,
       item2: earnings.thisMonth,
-      item3: completion,
-      item4: completion,
     });
   },
 

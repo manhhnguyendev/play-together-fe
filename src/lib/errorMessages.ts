@@ -28,7 +28,7 @@ const VIETNAMESE_MESSAGES: Record<string, string> = {
   maintenance_mode: 'Ứng dụng đang tạm ngừng để bảo trì.',
 
   // Player mode & hiring
-  player_mode_disabled: 'Người chơi này đang ngừng nhận thuê.',
+  player_mode_disabled: 'Bạn đang ở chế độ nhận thuê. Tắt chế độ này trước khi đi thuê người khác.',
   player_mode_requirements: 'Cần có kỹ năng và mức giá trước khi bật nhận thuê.',
   player_unavailable: 'Người chơi không ở trạng thái sẵn sàng ngay lúc này.',
   active_order_exists: 'Bạn còn lượt thuê chưa hoàn tất, hãy kết thúc trước khi ngừng nhận thuê.',

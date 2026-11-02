@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PlayerRowCard } from '@/components/players/PlayerRowCard';
@@ -7,7 +8,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { colors, spacing } from '@/theme';
 
 export default function PlayerListScreen() {
-  const payload = playerListDraft.get();
+  const [payload] = useState(() => playerListDraft.take());
   const { gutter, contentStyle, columns } = useResponsive();
 
   return (
@@ -32,7 +33,11 @@ export default function PlayerListScreen() {
             <EmptyState
               icon="people-outline"
               title="Không có dữ liệu"
-              description="Hiện chưa có người chơi nào trong danh mục này."
+              description={
+                payload
+                  ? 'Hiện chưa có người chơi nào trong danh mục này.'
+                  : 'Danh sách chỉ hiện khi mở từ một mục trên trang Chủ.'
+              }
             />
           </View>
         }

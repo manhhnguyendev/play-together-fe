@@ -147,7 +147,7 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          {user?.isPlayer ? <PlayerDashboard /> : null}
+          {user?.isPlayer || user?.hasSkills ? <PlayerDashboard /> : null}
 
           {hasRecommendations ? (
             <PlayerRail

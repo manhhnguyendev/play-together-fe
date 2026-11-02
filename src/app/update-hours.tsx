@@ -55,7 +55,7 @@ export default function UpdateHoursScreen() {
         right={
           <Pressable
             hitSlop={hitSlop.md}
-            onPress={() => router.push('/add-hour')}
+            onPress={() => router.push('/hour-form')}
             accessibilityRole="button"
             accessibilityLabel="Thêm giờ"
             style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
@@ -138,13 +138,8 @@ function HourRow({
       <Pressable
         onPress={() =>
           router.push({
-            pathname: '/update-hour',
-            params: {
-              id: item.id,
-              dayInWeek: String(item.dayInWeek),
-              fromHour: String(item.fromHour),
-              toHour: String(item.toHour),
-            },
+            pathname: '/hour-form',
+            params: { id: item.id },
           })
         }
         accessibilityRole="link"

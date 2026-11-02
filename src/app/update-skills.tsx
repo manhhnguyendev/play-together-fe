@@ -20,8 +20,9 @@ import {
   SelectField,
   useToast,
 } from '@/components/ui';
-import { useAppRouter } from '@/hooks/useAppRouter';
+import { SkillPickerSheet } from '@/components/skills/SkillPickerSheet';
 import { useResponsive } from '@/hooks/useResponsive';
+import { displayNameOfGame } from '@/lib/format';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
 import {
@@ -33,7 +34,7 @@ import {
 } from '@/theme';
 
 export default function UpdateSkillsScreen() {
-  const router = useAppRouter();
+  const [pickerOpen, setPickerOpen] = useState(false);
   const { gutter, contentStyle, itemWidth, type } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? '';
@@ -53,7 +54,7 @@ export default function UpdateSkillsScreen() {
         right={
           <Pressable
             hitSlop={hitSlop.md}
-            onPress={() => router.push('/add-skill')}
+            onPress={() => setPickerOpen(true)}
             accessibilityRole="button"
             accessibilityLabel="Thêm kỹ năng"
             style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
@@ -90,6 +91,17 @@ export default function UpdateSkillsScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Mounted only while open: react-native-web keeps a closed Modal's node
+          in the DOM, and a stale full-screen sheet is exactly what an
+          accessibility tree would keep reading. */}
+      {pickerOpen ? (
+        <SkillPickerSheet
+          userId={userId}
+          existing={games}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -108,7 +120,7 @@ function SkillRow({
   const toast = useToast();
   const queryClient = useQueryClient();
   const { type } = useResponsive();
-  const hasRank = game.rankId !== 'None';
+  const savedRankId = game.rankId !== 'None' ? game.rankId : null;
   const [rankOverride, setRankOverride] = useState<{
     gameId: string;
     rankId: string | null;
@@ -116,18 +128,17 @@ function SkillRow({
   const [busy, setBusy] = useState(false);
 
   const rankId =
-    rankOverride?.gameId === game.id
-      ? rankOverride.rankId
-      : hasRank
-        ? game.rankId
-        : null;
+    rankOverride?.gameId === game.id ? rankOverride.rankId : savedRankId;
 
   const setRankId = (value: string | null) =>
     setRankOverride({ gameId: game.id, rankId: value });
 
+  // The game's rank list decides whether a rank can be picked: gating the query
+  // on "this skill already has a rank" left a freshly added skill with no way to
+  // ever get one.
   const ranksQuery = useQuery({
     queryKey: queryKeys.gameRanks(game.gameId),
-    enabled: hasRank,
+    enabled: Boolean(game.gameId),
     queryFn: async () => (await gameService.getAllRanks(game.gameId)).content,
   });
 
@@ -181,14 +192,14 @@ function SkillRow({
     <View style={[styles.card, style]}>
       <View style={styles.cardHeader}>
         <Text style={[styles.gameName, type.bodyMedium]} numberOfLines={2}>
-          {game.game?.name}
+          {displayNameOfGame(game.game)}
         </Text>
         <Pressable
           hitSlop={hitSlop.sm}
           disabled={busy}
           onPress={() => void remove()}
           accessibilityRole="button"
-          accessibilityLabel={`Xóa kỹ năng ${game.game?.name ?? ''}`}
+          accessibilityLabel={`Xóa kỹ năng ${displayNameOfGame(game.game)}`}
           accessibilityState={{ disabled: busy }}
           style={({ pressed }) => [
             styles.deleteButton,
@@ -199,7 +210,7 @@ function SkillRow({
           <Ionicons name="trash-outline" size={19} color={colors.danger} />
         </Pressable>
       </View>
-      {hasRank ? (
+      {options.length > 0 ? (
         <SelectField
           variant="floating"
           label="Rank"

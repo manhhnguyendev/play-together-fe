@@ -2,6 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -186,165 +188,172 @@ export default function ManageHiringScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Quản lý nhận thuê" />
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={[styles.column, contentStyle]}>
-          <View
-            style={[
-              styles.statusCard,
-              isPlayer ? styles.statusCardOn : styles.statusCardOff,
-            ]}
-          >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.column, contentStyle]}>
             <View
               style={[
-                styles.statusDot,
-                { backgroundColor: isPlayer ? colors.success : colors.textFaint },
-              ]}
-            />
-            <Text
-              style={[
-                styles.status,
-                { color: isPlayer ? colors.success : colors.textSecondary },
+                styles.statusCard,
+                isPlayer ? styles.statusCardOn : styles.statusCardOff,
               ]}
             >
-              {isPlayer ? 'Sẵn sàng nhận yêu cầu thuê' : 'Ngừng nhận yêu cầu thuê'}
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <Pressable
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-              accessibilityRole="switch"
-              accessibilityLabel={isPlayer ? 'Tắt nhận yêu cầu thuê' : 'Bật nhận yêu cầu thuê'}
-              accessibilityState={{ checked: isPlayer }}
-              onPress={() => void togglePlayer(!isPlayer)}
-            >
-              <Text style={styles.rowTitle}>Nhận yêu cầu thuê</Text>
-              <Switch
-                value={isPlayer}
-                accessibilityRole="switch"
-                accessibilityLabel="Nhận yêu cầu thuê"
-                accessibilityState={{ checked: isPlayer }}
-                onValueChange={(value) => void togglePlayer(value)}
-                trackColor={{ true: colors.primaryFill, false: colors.borderStrong }}
-                thumbColor={colors.white}
-                ios_backgroundColor={colors.borderStrong}
+              <View
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: isPlayer ? colors.success : colors.textFaint },
+                ]}
               />
-            </Pressable>
-            <View style={styles.divider} />
-
-            <View style={styles.choiceRow}>
-              <Text style={styles.rowTitle}>Số giờ tối đa</Text>
-              <View style={styles.hourOptions}>
-                {MAX_HOUR_OPTIONS.map((hour) => (
-                  <Chip
-                    key={hour}
-                    label={String(hour)}
-                    selected={maxHourHire === hour}
-                    onPress={() => updateDraft({ maxHourHire: hour })}
-                  />
-                ))}
-              </View>
+              <Text
+                style={[
+                  styles.status,
+                  { color: isPlayer ? colors.success : colors.textSecondary },
+                ]}
+              >
+                {isPlayer ? 'Sẵn sàng nhận yêu cầu thuê' : 'Ngừng nhận yêu cầu thuê'}
+              </Text>
             </View>
-            <View style={styles.divider} />
 
-            <View style={styles.priceRow}>
-              <View style={styles.priceInput}>
-                <TextField
-                  variant="floating"
-                  label="Chi phí mỗi giờ"
-                  value={priceText}
-                  onChangeText={(value) =>
-                    updateDraft({
-                      priceText: parseAmount(value)
-                        ? formatNumber(parseAmount(value))
-                        : '',
-                    })
-                  }
-                  keyboardType="number-pad"
-                  placeholder="10.000"
-                  maxLength={11}
+            <View style={styles.card}>
+              <Pressable
+                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                accessibilityRole="switch"
+                accessibilityLabel={isPlayer ? 'Tắt nhận yêu cầu thuê' : 'Bật nhận yêu cầu thuê'}
+                accessibilityState={{ checked: isPlayer }}
+                onPress={() => void togglePlayer(!isPlayer)}
+              >
+                <Text style={styles.rowTitle}>Nhận yêu cầu thuê</Text>
+                <Switch
+                  value={isPlayer}
+                  accessibilityRole="switch"
+                  accessibilityLabel="Nhận yêu cầu thuê"
+                  accessibilityState={{ checked: isPlayer }}
+                  onValueChange={(value) => void togglePlayer(value)}
+                  trackColor={{ true: colors.primaryFill, false: colors.borderStrong }}
+                  thumbColor={colors.white}
+                  ios_backgroundColor={colors.borderStrong}
+                />
+              </Pressable>
+              <View style={styles.divider} />
+
+              <View style={styles.choiceRow}>
+                <Text style={styles.rowTitle}>Số giờ tối đa</Text>
+                <View style={styles.hourOptions}>
+                  {MAX_HOUR_OPTIONS.map((hour) => (
+                    <Chip
+                      key={hour}
+                      label={String(hour)}
+                      selected={maxHourHire === hour}
+                      onPress={() => updateDraft({ maxHourHire: hour })}
+                    />
+                  ))}
+                </View>
+              </View>
+              <View style={styles.divider} />
+
+              <View style={styles.priceRow}>
+                <View style={styles.priceInput}>
+                  <TextField
+                    variant="floating"
+                    label="Chi phí mỗi giờ"
+                    value={priceText}
+                    onChangeText={(value) =>
+                      updateDraft({
+                        priceText: parseAmount(value)
+                          ? formatNumber(parseAmount(value))
+                          : '',
+                      })
+                    }
+                    keyboardType="number-pad"
+                    placeholder="10.000"
+                    maxLength={11}
+                  />
+                </View>
+                <Text style={styles.unit}>đ</Text>
+              </View>
+
+              <View style={styles.updateBlock}>
+                <Button
+                  label="Cập nhật"
+                  size="md"
+                  onPress={() => void onUpdatePress()}
+                  loading={updatingService}
                 />
               </View>
-              <Text style={styles.unit}>đ</Text>
             </View>
 
-            <View style={styles.updateBlock}>
-              <Button
-                label="Cập nhật"
-                size="md"
-                onPress={() => void onUpdatePress()}
-                loading={updatingService}
+            <View style={styles.card}>
+              <SectionHeader
+                title="Kỹ năng"
+                icon="game-controller-outline"
+                actionLabel="Chỉnh sửa"
+                onAction={() => router.push('/update-skills')}
               />
+              {gamesQuery.isLoading ? (
+                <Text style={styles.empty}>Đang tải...</Text>
+              ) : games.length === 0 ? (
+                <Text style={styles.empty}>Chưa cập nhật kỹ năng</Text>
+              ) : (
+                games.map((item) => (
+                  <View key={item.id} style={styles.lineRow}>
+                    <View style={styles.lineDot} />
+                    <Text style={styles.gameLine}>
+                      {item.game?.name}
+                      {item.rankId !== 'None' && item.rank
+                        ? ` : ${item.rank.name}`
+                        : ''}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            <View style={styles.card}>
+              <SectionHeader
+                title="Giờ online"
+                icon="time-outline"
+                actionLabel="Chỉnh sửa"
+                onAction={() => router.push('/update-hours')}
+              />
+              {WEEK_DAYS.map((day) => {
+                const items = datingsByDay[day.day] ?? [];
+                return (
+                  <View key={day.day} style={styles.dayRow}>
+                    <Text style={styles.dayLabel}>{day.label}</Text>
+                    {items.length === 0 ? (
+                      <Text style={styles.dayEmpty}>—</Text>
+                    ) : (
+                      <View style={styles.hourChips}>
+                        {items.map((item) => (
+                          <View key={item.id} style={styles.hourChip}>
+                            <Text style={styles.hourText}>
+                              {formatMinuteOfDay(item.fromHour)} -{' '}
+                              {formatMinuteOfDay(item.toHour)}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           </View>
-
-          <View style={styles.card}>
-            <SectionHeader
-              title="Kỹ năng"
-              icon="game-controller-outline"
-              actionLabel="Chỉnh sửa"
-              onAction={() => router.push('/update-skills')}
-            />
-            {gamesQuery.isLoading ? (
-              <Text style={styles.empty}>Đang tải...</Text>
-            ) : games.length === 0 ? (
-              <Text style={styles.empty}>Chưa cập nhật kỹ năng</Text>
-            ) : (
-              games.map((item) => (
-                <View key={item.id} style={styles.lineRow}>
-                  <View style={styles.lineDot} />
-                  <Text style={styles.gameLine}>
-                    {item.game?.name}
-                    {item.rankId !== 'None' && item.rank
-                      ? ` : ${item.rank.name}`
-                      : ''}
-                  </Text>
-                </View>
-              ))
-            )}
-          </View>
-
-          <View style={styles.card}>
-            <SectionHeader
-              title="Giờ online"
-              icon="time-outline"
-              actionLabel="Chỉnh sửa"
-              onAction={() => router.push('/update-hours')}
-            />
-            {WEEK_DAYS.map((day) => {
-              const items = datingsByDay[day.day] ?? [];
-              return (
-                <View key={day.day} style={styles.dayRow}>
-                  <Text style={styles.dayLabel}>{day.label}</Text>
-                  {items.length === 0 ? (
-                    <Text style={styles.dayEmpty}>—</Text>
-                  ) : (
-                    <View style={styles.hourChips}>
-                      {items.map((item) => (
-                        <View key={item.id} style={styles.hourChip}>
-                          <Text style={styles.hourText}>
-                            {formatMinuteOfDay(item.fromHour)} -{' '}
-                            {formatMinuteOfDay(item.toHour)}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   scroll: { paddingVertical: spacing.sm, gap: spacing.sm },
   column: { gap: spacing.sm },
   card: {

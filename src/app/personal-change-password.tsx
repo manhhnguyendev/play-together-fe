@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   View,
@@ -90,7 +91,10 @@ export default function PersonalChangePasswordScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Thay đổi mật khẩu" />
-      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           style={contentStyle}
           contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }]}

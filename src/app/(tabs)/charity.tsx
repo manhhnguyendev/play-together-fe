@@ -120,6 +120,7 @@ export default function CharityScreen() {
           keyExtractor={(item) => item.id}
           style={contentStyle}
           contentContainerStyle={[styles.list, { paddingHorizontal: gutter }]}
+          keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
           onEndReachedThreshold={0.4}
           renderItem={({ item }) => (

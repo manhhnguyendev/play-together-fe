@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -106,210 +108,215 @@ export default function FilterScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <AppBar title="Bộ lọc" />
 
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }, contentStyle]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <SectionLabel>Lọc theo</SectionLabel>
-        <View style={styles.group}>
-          {SORT_OPTIONS.map((option) => (
-            <RadioRow
-              key={option.value}
-              label={option.label}
-              icon={option.icon}
-              selected={draft.sortOrder === option.value}
-              onPress={() =>
-                setDraft((current) => ({
-                  ...current,
-                  sortOrder:
-                    current.sortOrder === option.value ? 0 : option.value,
-                }))
-              }
-            />
-          ))}
-        </View>
-
-        <Divider />
-
-        <SectionLabel>Tùy chọn giới tính</SectionLabel>
-        <View style={styles.checkboxRow}>
-          <View style={styles.checkboxItem}>
-            <Checkbox
-              checked={draft.isMale}
-              label="Nam"
-              onPress={() =>
-                setDraft((current) => ({
-                  ...current,
-                  isMale: !current.isMale,
-                }))
-              }
-            />
-          </View>
-          <View style={styles.checkboxItem}>
-            <Checkbox
-              checked={draft.isFemale}
-              label="Nữ"
-              onPress={() =>
-                setDraft((current) => ({
-                  ...current,
-                  isFemale: !current.isFemale,
-                }))
-              }
-            />
-          </View>
-        </View>
-
-        <Divider />
-
-        <SectionLabel>Chữ cái đầu của tên</SectionLabel>
-        <View style={styles.letterGrid}>
-          {INITIALS.map((letter) => {
-            const selected = draft.initial === letter;
-            return (
-              <Pressable
-                key={letter}
-                accessibilityRole="button"
-                accessibilityLabel={`Chữ cái ${letter}`}
-                accessibilityState={{ selected }}
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter }, contentStyle]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <SectionLabel>Lọc theo</SectionLabel>
+          <View style={styles.group}>
+            {SORT_OPTIONS.map((option) => (
+              <RadioRow
+                key={option.value}
+                label={option.label}
+                icon={option.icon}
+                selected={draft.sortOrder === option.value}
                 onPress={() =>
                   setDraft((current) => ({
                     ...current,
-                    initial: current.initial === letter ? '' : letter,
+                    sortOrder:
+                      current.sortOrder === option.value ? 0 : option.value,
                   }))
                 }
+              />
+            ))}
+          </View>
+
+          <Divider />
+
+          <SectionLabel>Tùy chọn giới tính</SectionLabel>
+          <View style={styles.checkboxRow}>
+            <View style={styles.checkboxItem}>
+              <Checkbox
+                checked={draft.isMale}
+                label="Nam"
+                onPress={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    isMale: !current.isMale,
+                  }))
+                }
+              />
+            </View>
+            <View style={styles.checkboxItem}>
+              <Checkbox
+                checked={draft.isFemale}
+                label="Nữ"
+                onPress={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    isFemale: !current.isFemale,
+                  }))
+                }
+              />
+            </View>
+          </View>
+
+          <Divider />
+
+          <SectionLabel>Chữ cái đầu của tên</SectionLabel>
+          <View style={styles.letterGrid}>
+            {INITIALS.map((letter) => {
+              const selected = draft.initial === letter;
+              return (
+                <Pressable
+                  key={letter}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Chữ cái ${letter}`}
+                  accessibilityState={{ selected }}
+                  onPress={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      initial: current.initial === letter ? '' : letter,
+                    }))
+                  }
+                  style={({ pressed }) => [
+                    styles.letterChip,
+                    selected && styles.letterChipActive,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.letterText,
+                      selected && styles.letterTextActive,
+                    ]}
+                  >
+                    {letter}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Divider />
+
+          <SectionLabel>Tùy chọn giá thuê mỗi giờ</SectionLabel>
+          <View style={styles.priceRow}>
+            <View style={styles.priceField}>
+              <Text style={styles.priceLabel}>Từ</Text>
+              <TextInput
+                value={startPriceText}
+                onChangeText={setStartPriceText}
+                keyboardType="number-pad"
+                placeholder="10000"
+                placeholderTextColor={colors.textFaint}
+                style={styles.priceInput}
+              />
+              <Text style={styles.priceUnit}>đ</Text>
+            </View>
+            <Text style={styles.priceDash}>—</Text>
+            <View style={styles.priceField}>
+              <Text style={styles.priceLabel}>Đến</Text>
+              <TextInput
+                value={endPriceText}
+                onChangeText={setEndPriceText}
+                keyboardType="number-pad"
+                placeholder="5000000"
+                placeholderTextColor={colors.textFaint}
+                style={styles.priceInput}
+              />
+              <Text style={styles.priceUnit}>đ</Text>
+            </View>
+          </View>
+          <Text style={styles.priceHint}>
+            {formatNumber(parseAmount(startPriceText))}đ -{' '}
+            {formatNumber(parseAmount(endPriceText))}đ
+          </Text>
+          <View style={styles.presets}>
+            {PRICE_PRESETS.map((preset) => (
+              <Pressable
+                key={preset.label}
+                accessibilityRole="button"
+                onPress={() => applyPreset(preset.start, preset.end)}
                 style={({ pressed }) => [
-                  styles.letterChip,
-                  selected && styles.letterChipActive,
+                  styles.preset,
                   pressed && { opacity: 0.7 },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.letterText,
-                    selected && styles.letterTextActive,
-                  ]}
-                >
-                  {letter}
-                </Text>
+                <Text style={styles.presetText}>{preset.label}</Text>
               </Pressable>
-            );
-          })}
-        </View>
-
-        <Divider />
-
-        <SectionLabel>Tùy chọn giá thuê mỗi giờ</SectionLabel>
-        <View style={styles.priceRow}>
-          <View style={styles.priceField}>
-            <Text style={styles.priceLabel}>Từ</Text>
-            <TextInput
-              value={startPriceText}
-              onChangeText={setStartPriceText}
-              keyboardType="number-pad"
-              placeholder="10000"
-              placeholderTextColor={colors.textFaint}
-              style={styles.priceInput}
-            />
-            <Text style={styles.priceUnit}>đ</Text>
-          </View>
-          <Text style={styles.priceDash}>—</Text>
-          <View style={styles.priceField}>
-            <Text style={styles.priceLabel}>Đến</Text>
-            <TextInput
-              value={endPriceText}
-              onChangeText={setEndPriceText}
-              keyboardType="number-pad"
-              placeholder="5000000"
-              placeholderTextColor={colors.textFaint}
-              style={styles.priceInput}
-            />
-            <Text style={styles.priceUnit}>đ</Text>
-          </View>
-        </View>
-        <Text style={styles.priceHint}>
-          {formatNumber(parseAmount(startPriceText))}đ -{' '}
-          {formatNumber(parseAmount(endPriceText))}đ
-        </Text>
-        <View style={styles.presets}>
-          {PRICE_PRESETS.map((preset) => (
-            <Pressable
-              key={preset.label}
-              accessibilityRole="button"
-              onPress={() => applyPreset(preset.start, preset.end)}
-              style={({ pressed }) => [
-                styles.preset,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Text style={styles.presetText}>{preset.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Divider />
-
-        <SectionLabel>Tùy chọn trạng thái của người chơi</SectionLabel>
-        <View style={styles.group}>
-          {STATUS_OPTIONS.map((option) => (
-            <RadioRow
-              key={option.value}
-              label={option.label}
-              selected={draft.statusOrder === option.value}
-              onPress={() =>
-                setDraft((current) => ({
-                  ...current,
-                  statusOrder: option.value,
-                }))
-              }
-            />
-          ))}
-        </View>
-
-        <Divider />
-
-        <SectionLabel>Chọn các tựa game bạn muốn tìm</SectionLabel>
-        {gamesQuery.isLoading ? (
-          <LoadingView label="Đang tải danh sách game..." />
-        ) : gamesQuery.isError && (gamesQuery.data ?? []).length === 0 ? (
-          <View style={styles.gamesError}>
-            <Text style={styles.gamesErrorText}>
-              Không tải được danh sách game. Bạn vẫn có thể áp dụng các bộ lọc
-              khác.
-            </Text>
-            <Button
-              label="Thử lại"
-              variant="outline"
-              size="sm"
-              fullWidth={false}
-              onPress={() => void gamesQuery.refetch()}
-            />
-          </View>
-        ) : (
-          <View style={styles.gamesGrid}>
-            {(gamesQuery.data ?? []).map((game) => (
-              <View key={game.id} style={{ width: itemWidth(168, spacing.xs) }}>
-                <Checkbox
-                  checked={draft.gameIds.includes(game.id)}
-                  label={game.displayName || game.name || game.otherName}
-                  onPress={() => toggleGame(game.id)}
-                />
-              </View>
             ))}
           </View>
-        )}
-      </ScrollView>
 
-      <View style={styles.footer}>
-        <View style={[styles.footerRow, { paddingHorizontal: gutter }, contentStyle]}>
-          <View style={styles.footerButton}>
-            <Button label="Đặt lại" variant="outline" onPress={reset} />
+          <Divider />
+
+          <SectionLabel>Tùy chọn trạng thái của người chơi</SectionLabel>
+          <View style={styles.group}>
+            {STATUS_OPTIONS.map((option) => (
+              <RadioRow
+                key={option.value}
+                label={option.label}
+                selected={draft.statusOrder === option.value}
+                onPress={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    statusOrder: option.value,
+                  }))
+                }
+              />
+            ))}
           </View>
-          <View style={styles.footerButton}>
-            <Button label="Áp dụng" onPress={apply} />
+
+          <Divider />
+
+          <SectionLabel>Chọn các tựa game bạn muốn tìm</SectionLabel>
+          {gamesQuery.isLoading ? (
+            <LoadingView label="Đang tải danh sách game..." />
+          ) : gamesQuery.isError && (gamesQuery.data ?? []).length === 0 ? (
+            <View style={styles.gamesError}>
+              <Text style={styles.gamesErrorText}>
+                Không tải được danh sách game. Bạn vẫn có thể áp dụng các bộ lọc
+                khác.
+              </Text>
+              <Button
+                label="Thử lại"
+                variant="outline"
+                size="sm"
+                fullWidth={false}
+                onPress={() => void gamesQuery.refetch()}
+              />
+            </View>
+          ) : (
+            <View style={styles.gamesGrid}>
+              {(gamesQuery.data ?? []).map((game) => (
+                <View key={game.id} style={{ width: itemWidth(168, spacing.xs) }}>
+                  <Checkbox
+                    checked={draft.gameIds.includes(game.id)}
+                    label={game.displayName || game.name || game.otherName}
+                    onPress={() => toggleGame(game.id)}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <View style={[styles.footerRow, { paddingHorizontal: gutter }, contentStyle]}>
+            <View style={styles.footerButton}>
+              <Button label="Đặt lại" variant="outline" onPress={reset} />
+            </View>
+            <View style={styles.footerButton}>
+              <Button label="Áp dụng" onPress={apply} />
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -362,6 +369,7 @@ function RadioRow({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   scroll: {
     paddingTop: spacing.md,
     paddingBottom: spacing.xxxl,

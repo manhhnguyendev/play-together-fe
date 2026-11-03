@@ -63,6 +63,7 @@ const VIETNAMESE_MESSAGES: Record<string, string> = {
 
   // Ratings, reports, chat
   already_rated: 'Bạn đã đánh giá lượt thuê này.',
+  rating_blocked_by_report: 'Bạn đã tố cáo lượt thuê này nên không đánh giá được nữa.',
   self_rating_not_allowed: 'Bạn không thể đánh giá chính mình.',
   rating_not_found: 'Không tìm thấy đánh giá.',
   violation_not_allowed: 'Không thể báo cáo lượt thuê này.',

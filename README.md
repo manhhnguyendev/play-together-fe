@@ -101,7 +101,8 @@ src/app/
   player-list?source=new-accounts|same-hobbies|top-rating|recent-orders|recommend
   filter, search
   send-hiring-request, hiring-negotiating/[orderId], hiring-stage/[orderId], receive-request/[orderId]
-  end-order/[orderId], end-order-early/[orderId], rating/[orderId], report/[target]?kind=order|rating
+  end-order/[orderId] (the rating form is a sheet over it), end-order-early/[orderId],
+  report/[target]?kind=order|rating
   chat/[orderId], history/[orderId]
   charity/[charityId], charity-donate/[charityId]
   deposit, withdraw, transactions, unactive-balance

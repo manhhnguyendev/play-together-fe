@@ -10,6 +10,7 @@ import {
 import { orderService } from '@/api/services/orders';
 import { OrderParties } from '@/components/orders/OrderParties';
 import { CancelOrderDialog } from '@/components/orders/CancelOrderDialog';
+import { RatingSheet } from '@/components/orders/RatingSheet';
 import { AppBar, Button, ErrorView, LoadingView, useToast } from '@/components/ui';
 import {
   endOrderStatusLabel,
@@ -60,6 +61,7 @@ export default function EndOrderScreen() {
   const deadline = order ? reconciliationDeadline(order) : null;
   const secondsToPayout = useCountdown(confirmable ? deadline : null);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
 
   const confirmMutation = useMutation({
     mutationFn: () => orderService.finish(order!.id),
@@ -107,12 +109,10 @@ export default function EndOrderScreen() {
   const hasStarted = !isEmptyDate(order.timeStart);
 
   // Each handler is only reachable from the button that renders for its state.
-  const openRating = () => {
-    router.replace({
-      pathname: '/rating/[orderId]',
-      params: { orderId: order.id },
-    });
-  };
+  // The rating form is a sheet over this screen rather than a route: it needs
+  // nothing the order view does not already show, and `replace` used to drop the
+  // hirer out of the screen they had just read.
+  const openRating = () => setRatingOpen(true);
 
   const openStage = () => {
     router.push({
@@ -343,6 +343,16 @@ export default function EndOrderScreen() {
         loading={cancelMutation.isPending}
         onDismiss={() => setCancelOpen(false)}
         onConfirm={(reason) => cancelMutation.mutate(reason)}
+      />
+
+      <RatingSheet
+        orderId={order.id}
+        playerName={order.toUser?.name}
+        playerAvatar={order.toUser?.avatar}
+        canRate={Boolean(order.canRate)}
+        visible={ratingOpen}
+        onDismiss={() => setRatingOpen(false)}
+        onRated={() => void orderQuery.refetch()}
       />
     </SafeAreaView>
   );

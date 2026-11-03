@@ -63,8 +63,9 @@ Google sign-in is optional: set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (see `.env.ex
 email + password still works. That single client ID is what the browser flow needs — on a phone the
 same hook switches to the authorization-code flow, which a Web client cannot finish, so device
 sign-in is a separate setup: `docs/google-signin.md` (project root) lists the two options and what
-each one costs. A failed Google attempt now toasts the actual reason (unregistered redirect URI,
-wrong client type, cancelled consent) instead of a bare "đăng nhập thất bại".
+each one costs. When Google reports a failure back to the app, the toast now names the reason
+(wrong client type, expired grant, cancelled consent) instead of a bare "đăng nhập thất bại" — errors
+Google keeps inside its own popup page still look like nothing happened.
 
 ## API layer
 

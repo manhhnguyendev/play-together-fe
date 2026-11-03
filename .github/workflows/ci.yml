@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Lint, typecheck and bundle
+    name: Lint, typecheck, test and bundle
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -31,9 +31,11 @@ jobs:
       - run: npm ci
 
       # The same gates the app is checked with locally: eslint-config-expo, then
-      # tsc, then a real Metro web bundle so a broken import cannot pass CI.
+      # tsc, then the pure-layer tests, then a real Metro web bundle so a broken
+      # import cannot pass CI.
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm test
       - run: npx expo export --platform web --output-dir dist/ci-web-bundle
 
       - uses: actions/upload-artifact@v4

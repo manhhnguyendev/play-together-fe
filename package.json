@@ -32,9 +32,12 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@types/jest": "30.0.0",
     "@types/react": "~19.3.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~58.0.4",
+    "jest": "~30.5.2",
+    "jest-expo": "~58.0.13",
     "orval": "^8.45.0",
     "typescript": "~6.0.3"
   },
@@ -45,6 +48,8 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
     "api:generate": "orval --config orval.config.ts"
   },
   "private": true,

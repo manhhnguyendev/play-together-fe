@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   RefreshControl,
   ScrollView,
@@ -7,20 +7,20 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { recommendService } from '@/api/services/content';
-import { userService } from '@/api/services/users';
 import type { GetAllUserModel } from '@/api/types';
 import { PlayerDashboard } from '@/components/player/PlayerDashboard';
 import { PlayerRail } from '@/components/players/PlayerRail';
 import { EmptyState, ErrorView, HomeAppBar } from '@/components/ui';
-import { playerListDraft } from '@/features/discovery/playerListDraft';
+import {
+  PLAYER_LIST_SOURCES,
+  type PlayerListSource,
+  usePlayerListSource,
+} from '@/features/discovery/playerListSources';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useResponsive } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth';
 import { colors, fonts, radius, spacing } from '@/theme';
-
-const MIN_RECOMMEND_SCORE = 0;
 
 type LoadableList = { isError: boolean; data?: GetAllUserModel[] };
 
@@ -32,40 +32,21 @@ export default function HomeScreen() {
   const queryClient = useQueryClient();
   const { gutter, contentStyle } = useResponsive();
   const user = useAuthStore((state) => state.user);
+  const userId = user?.id ?? '';
 
-  const newAccountsQuery = useQuery({
-    queryKey: queryKeys.home.newAccounts,
-    queryFn: async () => (await userService.getNewAccounts()).content,
+  const topRatingQuery = usePlayerListSource('top-rating', {
+    userId,
+    topPlayerIds: [],
   });
-
-  const sameHobbiesQuery = useQuery({
-    queryKey: queryKeys.home.sameHobbies,
-    queryFn: async () => (await userService.getSameHobbies()).content,
-  });
-
-  const topRatingQuery = useQuery({
-    queryKey: queryKeys.home.topRating,
-    queryFn: async () => (await userService.getTopRating()).content,
-  });
-
-  const recentOrdersQuery = useQuery({
-    queryKey: queryKeys.home.recentOrders,
-    queryFn: async () => (await userService.getRecentOrders()).content,
-  });
-
   const topPlayerIds = (topRatingQuery.data ?? []).map((player) => player.id);
-  const canRecommend = Boolean(user?.id) && topPlayerIds.length === 5;
+  const context = { userId, topPlayerIds };
+  const canRecommend = Boolean(userId) && topPlayerIds.length === 5;
 
-  const recommendQuery = useQuery({
-    queryKey: queryKeys.home.recommend(user?.id ?? '', topPlayerIds),
+  const newAccountsQuery = usePlayerListSource('new-accounts', context);
+  const sameHobbiesQuery = usePlayerListSource('same-hobbies', context);
+  const recentOrdersQuery = usePlayerListSource('recent-orders', context);
+  const recommendQuery = usePlayerListSource('recommend', context, {
     enabled: canRecommend,
-    staleTime: 5 * 60_000,
-    queryFn: async () => {
-      const results = await recommendService.predict(topPlayerIds.length);
-      return results
-        .filter((item) => Number(item.score) > MIN_RECOMMEND_SCORE)
-        .map((item) => item.player);
-    },
   });
 
   const recommendations = recommendQuery.data ?? [];
@@ -106,9 +87,8 @@ export default function HomeScreen() {
     failedWithNothing(topRatingQuery) &&
     !hasRecommendations;
 
-  const openList = (title: string, players: GetAllUserModel[]) => {
-    playerListDraft.set({ title, players });
-    router.push('/player-list');
+  const openList = (source: PlayerListSource) => {
+    router.push({ pathname: '/player-list', params: { source } });
   };
 
   const nothingToShow =
@@ -151,9 +131,9 @@ export default function HomeScreen() {
 
           {hasRecommendations ? (
             <PlayerRail
-              title="Đề xuất cho bạn"
+              title={PLAYER_LIST_SOURCES.recommend.title}
               players={recommendations}
-              onSeeAll={() => openList('Đề xuất cho bạn', recommendations)}
+              onSeeAll={() => openList('recommend')}
             />
           ) : null}
 
@@ -165,49 +145,41 @@ export default function HomeScreen() {
           ) : (
             <>
               <PlayerRail
-                title="Các người chơi mới"
+                title={PLAYER_LIST_SOURCES['new-accounts'].title}
                 players={newAccountsQuery.data}
                 loading={newAccountsQuery.isLoading}
                 error={newAccountsQuery.isError}
                 onRetry={() => void newAccountsQuery.refetch()}
-                onSeeAll={() =>
-                  openList('Các người chơi mới', newAccountsQuery.data ?? [])
-                }
+                onSeeAll={() => openList('new-accounts')}
               />
 
               {showTopPlayers ? (
                 <PlayerRail
-                  title="Top người chơi ưa thích"
+                  title={PLAYER_LIST_SOURCES['top-rating'].title}
                   players={topRatingQuery.data}
                   loading={topRatingQuery.isLoading}
                   error={topRatingQuery.isError}
                   onRetry={() => void topRatingQuery.refetch()}
-                  onSeeAll={() =>
-                    openList('Top người chơi ưa thích', topRatingQuery.data ?? [])
-                  }
+                  onSeeAll={() => openList('top-rating')}
                 />
               ) : null}
 
               <PlayerRail
-                title="Có thể bạn sẽ thích"
+                title={PLAYER_LIST_SOURCES['same-hobbies'].title}
                 players={sameHobbiesQuery.data}
                 loading={sameHobbiesQuery.isLoading}
                 error={sameHobbiesQuery.isError}
                 onRetry={() => void sameHobbiesQuery.refetch()}
-                onSeeAll={() =>
-                  openList('Có thể bạn sẽ thích', sameHobbiesQuery.data ?? [])
-                }
+                onSeeAll={() => openList('same-hobbies')}
               />
             </>
           )}
 
           {(recentOrdersQuery.data ?? []).length > 0 ? (
             <PlayerRail
-              title="Thuê lại"
+              title={PLAYER_LIST_SOURCES['recent-orders'].title}
               players={recentOrdersQuery.data}
-              onSeeAll={() =>
-                openList('Thuê lại', recentOrdersQuery.data ?? [])
-              }
+              onSeeAll={() => openList('recent-orders')}
             />
           ) : null}
 

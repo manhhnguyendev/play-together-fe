@@ -91,7 +91,8 @@ src/app/
   (tabs)/                      home, charity, history, notifications, personal
   onboarding/take-categories   Hobby selection after first sign-in
   player/[id]                  Public profile + availability
-  player-list, filter, search
+  player-list?source=new-accounts|same-hobbies|top-rating|recent-orders|recommend
+  filter, search
   send-hiring-request, hiring-negotiating/[orderId], hiring-stage/[orderId], receive-request/[orderId]
   end-order/[orderId], end-order-early/[orderId], rating/[orderId], report/[target]?kind=order|rating
   chat/[orderId], history/[orderId]

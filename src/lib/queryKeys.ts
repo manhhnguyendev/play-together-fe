@@ -6,6 +6,8 @@ export const queryKeys = {
     recentOrders: ['home', 'recent-orders'] as const,
     recommend: (userId: string, playerIds: string[]) =>
       ['home', 'recommend', userId, ...playerIds] as const,
+    /** Stand-in for a discovery list opened without a source; never fetched. */
+    noSource: ['home', 'no-source'] as const,
   },
   search: (keyword: string, filters: unknown, pageSize: number) =>
     ['search', keyword, filters, pageSize] as const,

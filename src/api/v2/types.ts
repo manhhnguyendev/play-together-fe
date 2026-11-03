@@ -420,6 +420,29 @@ export interface EarningsSummary {
   total: number;
 }
 
+export type SessionGranularity = 'day' | 'month';
+
+/**
+ * One calendar period in `users/me/session-stats`. The API cuts these in the app
+ * timezone and returns quiet periods as zeroes, so the chart never has to guess
+ * whether a missing column meant "nobody booked" or "we did not ask".
+ */
+export interface SessionBucket {
+  /** `2026-11-03` per day, `2026-11` per month. */
+  bucket: string;
+  startsAt: string;
+  playerSessions: number;
+  playerHours: number;
+  earned: number;
+  hirerSessions: number;
+  spent: number;
+}
+
+export interface SessionStats {
+  granularity: SessionGranularity;
+  buckets: SessionBucket[];
+}
+
 export interface ReleasePendingCreditsResult {
   released: number;
 }

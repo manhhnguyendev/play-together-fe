@@ -15,6 +15,7 @@ import type {
   CreateAvailabilityDto,
   FavoriteGameItemDto,
   PlayerModeDto,
+  SessionStatsView,
   UpdateAvailabilityDto,
   UpdateProfileDto,
   UpdateSkillRankDto,
@@ -25,7 +26,8 @@ import type {
   UserProfileView,
   UserSummary,
   UsersControllerAvailableNow200,
-  UsersControllerSearchParams
+  UsersControllerSearchParams,
+  UsersControllerSessionStatsParams
 } from '../../models';
 
 import { customInstance } from '../../../orval-mutator';
@@ -65,6 +67,18 @@ export const usersControllerUpdateMe = (
       {url: `/api/v2/users/me`, method: 'PATCH',
       headers: {'Content-Type': 'application/json', },
       data: updateProfileDto
+    },
+      );
+    }
+  /**
+ * @summary My finished sessions bucketed per day or per month
+ */
+export const usersControllerSessionStats = (
+    params?: UsersControllerSessionStatsParams,
+ ) => {
+      return customInstance<SessionStatsView>(
+      {url: `/api/v2/users/me/session-stats`, method: 'GET',
+        params
     },
       );
     }
@@ -335,6 +349,7 @@ export const usersControllerAvailableNow = (
   export type UsersControllerSearchResult = NonNullable<Awaited<ReturnType<typeof usersControllerSearch>>>
 export type UsersControllerMeResult = NonNullable<Awaited<ReturnType<typeof usersControllerMe>>>
 export type UsersControllerUpdateMeResult = NonNullable<Awaited<ReturnType<typeof usersControllerUpdateMe>>>
+export type UsersControllerSessionStatsResult = NonNullable<Awaited<ReturnType<typeof usersControllerSessionStats>>>
 export type UsersControllerUpdateStatusResult = NonNullable<Awaited<ReturnType<typeof usersControllerUpdateStatus>>>
 export type UsersControllerPlayerModeResult = NonNullable<Awaited<ReturnType<typeof usersControllerPlayerMode>>>
 export type UsersControllerAddSkillResult = NonNullable<Awaited<ReturnType<typeof usersControllerAddSkill>>>

@@ -43,6 +43,8 @@ export const queryKeys = {
   userImages: (userId: string) => ['users', userId, 'images'] as const,
   hobbies: (userId: string) => ['users', userId, 'hobbies'] as const,
   statistic: ['users', 'statistic'] as const,
+  sessionStats: (granularity: string, buckets: number) =>
+    ['users', 'session-stats', granularity, buckets] as const,
   unActiveBalances: ['users', 'un-active-balances'] as const,
   transactions: (type: string, operation: string, pageSize: number) =>
     ['users', 'transactions', type, operation, pageSize] as const,

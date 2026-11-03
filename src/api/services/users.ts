@@ -29,6 +29,8 @@ import type {
   Paginated,
   RecommendationView,
   ReleasePendingCreditsResult,
+  SessionGranularity,
+  SessionStats,
   UserProfile,
   UserSummary,
   WalletSummary,
@@ -134,6 +136,16 @@ export const userService = {
       item2: earnings.thisMonth,
     });
   },
+
+  /**
+   * Finished sessions per local day or month, from both sides of the trade. The
+   * window is deliberately short (14 days / 6 months) because the app draws it as
+   * bars; a longer window would be a table, not a chart.
+   */
+  getSessionStats: (granularity: SessionGranularity, buckets: number) =>
+    apiGet<SessionStats>(
+      `${API_URL.users}/me/session-stats${buildQuery({ granularity, buckets })}`,
+    ),
 
   getGameOfUser: async (userId: string) => {
     const profile = await apiGet<UserProfile>(`${API_URL.users}/${userId}`);

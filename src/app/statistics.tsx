@@ -15,6 +15,7 @@ import {
   LoadingView,
   SectionHeader,
 } from '@/components/ui';
+import { SessionTrendCard } from '@/components/stats/SessionTrendCard';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useResponsive } from '@/hooks/useResponsive';
 import { formatVnd } from '@/lib/format';
@@ -137,6 +138,8 @@ export default function StatisticsScreen() {
               <RevenueStat value={statistic.item2} label="Theo tháng" />
             </View>
           </View>
+
+          <SessionTrendCard />
 
           <View style={styles.card}>
             <SectionHeader title="Độ uy tín" icon="shield-checkmark-outline" />

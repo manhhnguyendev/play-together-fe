@@ -5,17 +5,23 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { authService } from '@/api/services/auth';
 import { useToast } from '@/components/ui/Toast';
 import { useContinueAfterSignIn } from '@/features/auth/useContinueAfterSignIn';
+import { googleFailureMessage } from '@/features/auth/googleFailureMessage';
 import { useAuthStore } from '@/store/auth';
 import { colors, control, fonts, radius, shadow, spacing } from '@/theme';
 
 /**
  * The "Web application" OAuth client from the Google Cloud project.
  *
- * It is the only client ID this app asks for, on every platform. The token Google
- * hands back is stamped with the client ID that requested it, and the API only
- * trusts tokens stamped with its own GOOGLE_CLIENT_ID — so requesting through an
- * Android or iOS client would produce a token the API rejects as an audience
- * mismatch, even though the sign-in itself succeeded.
+ * The token Google hands back is stamped with the client ID that requested it, and the API
+ * only trusts tokens stamped with its own `GOOGLE_CLIENT_ID` (plus the optional
+ * `GOOGLE_ANDROID_CLIENT_ID` / `GOOGLE_IOS_CLIENT_ID`), so the client the app asks for has to
+ * be one the API already trusts.
+ *
+ * In the browser that is this Web client, and `useIdTokenAuthRequest` requests an `id_token`
+ * directly. On a device build the same hook switches to the authorization-code flow with a
+ * `<package>:/oauthredirect` redirect, which a Web client cannot complete without a client
+ * secret — so Google sign-in on a real build needs a native Google library instead of this
+ * hook. See `docs/google-signin.md`.
  */
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
@@ -66,7 +72,13 @@ function ConfiguredGoogleButton() {
     if (!response) return;
 
     if (response.type === 'error') {
-      toast.show('Đăng nhập Google thất bại', 'error');
+      toast.show(
+        googleFailureMessage({
+          code: response.error?.code,
+          description: response.error?.description ?? response.params.error_description,
+        }),
+        'error',
+      );
       return;
     }
     if (response.type !== 'success') return;

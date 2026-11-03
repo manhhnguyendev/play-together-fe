@@ -27,9 +27,11 @@ The API must be running (see `play-together-be`). Seeded accounts:
 | Hirer | `demo.hirer1..2@playtogether.local` | `Demo@12345` |
 | Charity | `charity@playtogether.local` | `Charity@12345` |
 
-Every native module used here ships inside **Expo Go**, so no development build is needed for the
-demo. After adding a library with native code, build one with `npx expo run:ios|android` or
-`eas build --profile development`.
+Every module the screens import today is bundled in **Expo Go**, so the demo needs no development
+build — the one exception is Google sign-in on a phone or tablet, which Expo Go cannot complete at
+all (see `docs/google-signin.md`, and the note under Configuration below). After adding a library
+with native code, build one with `npx expo run:ios|android` or `eas build --profile development`;
+`eas.json` already carries the four profiles.
 
 Web works too: `npm run web` serves the app on port 8081 with `localStorage` standing in for
 SecureStore.
@@ -56,9 +58,13 @@ tracked template.
 On a physical device `localhost` points at the phone, not your machine — use your machine's LAN IP
 (`EXPO_PUBLIC_API_URL=http://192.168.x.x:3000/api/v2`) and make sure the API is listening on it.
 
-Google sign-in is optional: set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` / `_IOS_` / `_ANDROID_` (see
-`.env.example`) and `GOOGLE_CLIENT_ID` on the API. Without them the Google button only shows a
-"not configured" hint and email + password still works.
+Google sign-in is optional: set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (see `.env.example`) and
+`GOOGLE_CLIENT_ID` on the API. Without them the Google button only shows a "not configured" hint and
+email + password still works. That single client ID is what the browser flow needs — on a phone the
+same hook switches to the authorization-code flow, which a Web client cannot finish, so device
+sign-in is a separate setup: `docs/google-signin.md` (project root) lists the two options and what
+each one costs. A failed Google attempt now toasts the actual reason (unregistered redirect URI,
+wrong client type, cancelled consent) instead of a bare "đăng nhập thất bại".
 
 ## API layer
 

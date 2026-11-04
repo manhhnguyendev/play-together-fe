@@ -45,8 +45,20 @@ npm run ios           # dev server + iOS simulator
 npm run web           # dev server + browser on port 8081
 npm run typecheck     # tsc --noEmit
 npm run lint          # expo lint
+npm test              # jest (jest-expo preset); CI runs it
+npm run test:watch    # jest --watch
 npm run api:generate  # regenerate src/api/generated from the API OpenAPI document
 ```
+
+## Tests
+
+Seven suites over the pure layers only: the responsive grid arithmetic, the VND and number/date
+conversions, the wire-to-legacy mappers for order, account and balance, the validators, the discovery
+`?source=` table, the trend chart's bar math, and the Google OAuth failure messages. They run
+on Node, so no screen import happens — that is deliberate, not an oversight: jest cannot import
+any component of this app today because `expo-asset` resolves only under `node_modules/expo`,
+which Metro understands and Node's standard resolver does not. Anything device-only (keyboard
+behaviour, safe areas, native Google sign-in) still needs a real phone.
 
 ## Configuration
 

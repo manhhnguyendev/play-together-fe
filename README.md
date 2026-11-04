@@ -70,14 +70,19 @@ tracked template.
 On a physical device `localhost` points at the phone, not your machine — use your machine's LAN IP
 (`EXPO_PUBLIC_API_URL=http://192.168.x.x:3000/api/v2`) and make sure the API is listening on it.
 
-Google sign-in is optional: set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (see `.env.example`) and
-`GOOGLE_CLIENT_ID` on the API. Without them the Google button only shows a "not configured" hint and
-email + password still works. That single client ID is what the browser flow needs — on a phone the
-same hook switches to the authorization-code flow, which a Web client cannot finish, so device
-sign-in is a separate setup: `docs/google-signin.md` (project root) lists the two options and what
-each one costs. When Google reports a failure back to the app, the toast now names the reason
-(wrong client type, expired grant, cancelled consent) instead of a bare "đăng nhập thất bại" — errors
-Google keeps inside its own popup page still look like nothing happened.
+Google sign-in is optional and configured per platform. In the browser: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+plus the same value as `GOOGLE_CLIENT_ID` on the API. On a phone or tablet build: also an OAuth client
+of type Android (`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`, package `com.playtogether.app` + the build's
+SHA-1) and the matching `GOOGLE_ANDROID_CLIENT_ID` on the API — the same hook then runs the
+authorization-code flow with PKCE, which is what an installed-app client can finish and a Web client
+cannot. Setting it changes the native project too, because `app.config.ts` registers the
+`com.googleusercontent.apps.<id>` return scheme Google redirects to, so a build made without the
+variable cannot come back. Expo Go never completes sign-in (its own package and `exp://` scheme are
+what Google sees), and the button says so there instead of opening a flow that cannot return. Full
+walkthrough: `docs/google-signin.md` in the project root. When Google reports a failure back to the
+app, the toast names the reason (wrong client type, expired grant, cancelled consent) instead of a
+bare "đăng nhập thất bại" — errors Google keeps inside its own popup page still look like nothing
+happened.
 
 ## API layer
 
@@ -129,7 +134,8 @@ src/app/
 - Pages still consume the legacy models re-exported by `src/api/types.ts`; the v2 shapes appear only
   in `src/api/v2` and the services. New screens can use the generated Orval client directly.
 - `ios/` and `android/` are produced by Expo CNG and are git-ignored — configure native behaviour in
-  `app.json` and config plugins instead of editing them.
+  `app.json` (static) or `app.config.ts` (anything that depends on an environment variable, today the
+  Google sign-in return scheme) and config plugins instead of editing them.
 - The recommendation rail on Home uses the v2 `score` as a shared-game count, so it filters on
   `score > 0` and hides when no suggestion matches the hirer's hobbies and searches.
 
